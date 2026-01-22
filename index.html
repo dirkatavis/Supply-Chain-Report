@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Status Dashboard</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f9fafb;
+            color: #111827;
+            line-height: 1.5;
+        }
+        
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+        
+        header {
+            background-color: white;
+            border-bottom: 1px solid #e5e7eb;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            padding: 1.5rem 0;
+        }
+        
+        h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: #111827;
+        }
+        
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 1.5rem;
+        }
+        
+        .role {
+            font-size: 1.125rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
+        }
+        
+        main {
+            padding: 2rem 0;
+        }
+        
+        .grid {
+            display: grid;
+            gap: 2rem;
+        }
+        
+        .grid-cols-4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+        
+        .col-span-3 {
+            grid-column: span 3;
+        }
+        
+        .col-span-1 {
+            grid-column: span 1;
+        }
+        
+        .status-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            transition: box-shadow 0.2s;
+        }
+        
+        .card:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        
+        .card-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #6b7280;
+        }
+        
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .status-green {
+            background-color: #10b981;
+            color: white;
+        }
+        
+        .status-amber {
+            background-color: #f59e0b;
+            color: white;
+        }
+        
+        .status-red {
+            background-color: #ef4444;
+            color: white;
+        }
+        
+        .card-value {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 0.5rem;
+        }
+        
+        .card-notes {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .card-date {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            margin-top: 0.5rem;
+        }
+        
+        .section {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .chart-container {
+            height: 320px;
+            position: relative;
+        }
+        
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .search-input {
+            padding: 0.5rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            width: 300px;
+        }
+        
+        .search-input:focus {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        thead {
+            background-color: #f9fafb;
+        }
+        
+        th {
+            padding: 0.75rem 1.5rem;
+            text-align: left;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        td {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #e5e7eb;
+            font-size: 0.875rem;
+        }
+        
+        tbody tr:hover {
+            background-color: #f9fafb;
+        }
+        
+        .sidebar {
+            position: sticky;
+            top: 2rem;
+        }
+        
+        .responsibilities-list {
+            list-style: none;
+        }
+        
+        .responsibilities-list li {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+            font-size: 0.875rem;
+            color: #374151;
+        }
+        
+        .check-icon {
+            width: 1.25rem;
+            height: 1.25rem;
+            color: #3b82f6;
+            margin-right: 0.5rem;
+            flex-shrink: 0;
+        }
+        
+        footer {
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            margin-top: 3rem;
+            padding: 1rem 0;
+        }
+        
+        footer p {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .last-updated {
+            font-weight: 600;
+        }
+        
+        @media (max-width: 1024px) {
+            .grid-cols-4 {
+                grid-template-columns: 1fr;
+            }
+            
+            .col-span-3, .col-span-1 {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <h1 id="userName"></h1>
+            <p class="role" id="userRole"></p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <div class="container">
+            <div class="grid grid-cols-4">
+                <!-- Main Content Area -->
+                <div class="col-span-3">
+                    <!-- Hero Section: Current Status Cards -->
+                    <section>
+                        <h2>Current Status</h2>
+                        <div id="currentStatusCards" class="status-cards">
+                            <!-- Cards will be dynamically inserted here -->
+                        </div>
+                    </section>
+
+                    <!-- Progress Over Time Chart -->
+                    <section class="section">
+                        <h2>Progress Over Time</h2>
+                        <div class="chart-container">
+                            <canvas id="progressChart"></canvas>
+                        </div>
+                    </section>
+
+                    <!-- Details Table -->
+                    <section class="section">
+                        <div class="table-header">
+                            <h2 style="margin-bottom: 0;">Recent Activity</h2>
+                            <input 
+                                type="text" 
+                                id="searchInput" 
+                                placeholder="Search..." 
+                                class="search-input"
+                            />
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>KPI Name</th>
+                                    <th>Value</th>
+                                    <th>Status</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detailsTableBody">
+                                <!-- Rows will be dynamically inserted here -->
+                            </tbody>
+                        </table>
+                    </section>
+                </div>
+
+                <!-- Sidebar: General Responsibilities -->
+                <aside class="col-span-1">
+                    <div class="card sidebar">
+                        <h2>General Responsibilities</h2>
+                        <ul id="responsibilitiesList" class="responsibilities-list">
+                            <!-- Responsibilities will be dynamically inserted here -->
+                        </ul>
+                    </div>
+                </aside>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>
+                Last Updated: <span class="last-updated" id="lastUpdated"></span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        let allData = [];
+
+        // Simple YAML parser for our specific format
+        function parseYAML(text) {
+            const lines = text.split('\n');
+            const config = {};
+            let currentKey = null;
+            let currentArray = [];
+            
+            for (let line of lines) {
+                line = line.trim();
+                if (!line) continue;
+                
+                if (line.includes(':') && !line.startsWith('-')) {
+                    if (currentKey && currentArray.length > 0) {
+                        config[currentKey] = currentArray;
+                        currentArray = [];
+                    }
+                    
+                    const parts = line.split(':');
+                    const key = parts[0].trim();
+                    const value = parts.slice(1).join(':').trim();
+                    
+                    if (value) {
+                        config[key] = value;
+                    } else {
+                        currentKey = key;
+                    }
+                } else if (line.startsWith('-')) {
+                    currentArray.push(line.substring(1).trim());
+                }
+            }
+            
+            if (currentKey && currentArray.length > 0) {
+                config[currentKey] = currentArray;
+            }
+            
+            return config;
+        }
+
+        // Simple CSV parser
+        function parseCSV(text) {
+            const lines = text.split('\n').filter(line => line.trim());
+            const headers = lines[0].split(',').map(h => h.trim());
+            const data = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map(v => v.trim());
+                const row = {};
+                headers.forEach((header, index) => {
+                    row[header] = values[index];
+                });
+                data.push(row);
+            }
+            
+            return data;
+        }
+
+        // Load and parse YAML config
+        async function loadConfig() {
+            try {
+                const response = await fetch('config.yaml');
+                const yamlText = await response.text();
+                const config = parseYAML(yamlText);
+                
+                // Update header
+                document.getElementById('userName').textContent = config.Name;
+                document.getElementById('userRole').textContent = config.Role;
+                
+                // Update responsibilities
+                const responsibilitiesList = document.getElementById('responsibilitiesList');
+                config['General Responsibilities'].forEach(resp => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <svg class="check-icon" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                        </svg>
+                        <span>${resp}</span>
+                    `;
+                    responsibilitiesList.appendChild(li);
+                });
+            } catch (error) {
+                console.error('Error loading config:', error);
+            }
+        }
+
+        // Load and parse CSV data
+        async function loadCSVData() {
+            try {
+                const response = await fetch('status.csv');
+                const csvText = await response.text();
+                allData = parseCSV(csvText);
+                
+                // Sort by date descending
+                allData.sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                renderCurrentStatus();
+                renderChart();
+                renderTable();
+                updateLastUpdated();
+            } catch (error) {
+                console.error('Error loading CSV:', error);
+            }
+        }
+
+        // Render current status cards (most recent entries)
+        function renderCurrentStatus() {
+            const container = document.getElementById('currentStatusCards');
+            container.innerHTML = '';
+            
+            // Get the most recent unique KPIs
+            const recentKPIs = [];
+            const seenKPIs = new Set();
+            
+            for (const entry of allData) {
+                if (!seenKPIs.has(entry.kpi_name) && recentKPIs.length < 6) {
+                    recentKPIs.push(entry);
+                    seenKPIs.add(entry.kpi_name);
+                }
+            }
+            
+            recentKPIs.forEach(entry => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                
+                const statusClass = `status-${entry.status_color.toLowerCase()}`;
+                
+                card.innerHTML = `
+                    <div class="card-header">
+                        <h3 class="card-title">${entry.kpi_name}</h3>
+                        <span class="status-badge ${statusClass}">
+                            ${entry.status_color}
+                        </span>
+                    </div>
+                    <div class="card-value">${entry.kpi_value}</div>
+                    <p class="card-notes">${entry.notes}</p>
+                    <p class="card-date">${formatDate(entry.date)}</p>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        // Simple chart rendering
+        function renderChart() {
+            const canvas = document.getElementById('progressChart');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size
+            const container = canvas.parentElement;
+            canvas.width = container.offsetWidth;
+            canvas.height = container.offsetHeight;
+            
+            // Group data by KPI name and get top 5
+            const kpiGroups = {};
+            allData.forEach(entry => {
+                if (!kpiGroups[entry.kpi_name]) {
+                    kpiGroups[entry.kpi_name] = [];
+                }
+                kpiGroups[entry.kpi_name].push(entry);
+            });
+            
+            const topKPIs = Object.keys(kpiGroups).slice(0, 5);
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+            
+            // Get all unique dates and sort them
+            const allDates = [...new Set(allData.map(e => e.date))].sort();
+            
+            // Calculate chart dimensions
+            const padding = 60;
+            const chartWidth = canvas.width - padding * 2;
+            const chartHeight = canvas.height - padding * 2;
+            
+            // Find min and max values
+            let minVal = Infinity;
+            let maxVal = -Infinity;
+            allData.forEach(entry => {
+                const val = parseFloat(entry.kpi_value);
+                if (val < minVal) minVal = val;
+                if (val > maxVal) maxVal = val;
+            });
+            
+            const valueRange = maxVal - minVal;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw axes
+            ctx.strokeStyle = '#e5e7eb';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, canvas.height - padding);
+            ctx.lineTo(canvas.width - padding, canvas.height - padding);
+            ctx.stroke();
+            
+            // Draw grid lines
+            ctx.strokeStyle = '#f3f4f6';
+            for (let i = 0; i <= 5; i++) {
+                const y = padding + (chartHeight / 5) * i;
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(canvas.width - padding, y);
+                ctx.stroke();
+            }
+            
+            // Draw lines for each KPI
+            topKPIs.forEach((kpiName, index) => {
+                const data = kpiGroups[kpiName].sort((a, b) => new Date(a.date) - new Date(b.date));
+                
+                ctx.strokeStyle = colors[index];
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                
+                data.forEach((entry, i) => {
+                    const dateIndex = allDates.indexOf(entry.date);
+                    const x = padding + (chartWidth / (allDates.length - 1)) * dateIndex;
+                    const val = parseFloat(entry.kpi_value);
+                    const y = canvas.height - padding - ((val - minVal) / valueRange) * chartHeight;
+                    
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                
+                ctx.stroke();
+                
+                // Draw points
+                data.forEach(entry => {
+                    const dateIndex = allDates.indexOf(entry.date);
+                    const x = padding + (chartWidth / (allDates.length - 1)) * dateIndex;
+                    const val = parseFloat(entry.kpi_value);
+                    const y = canvas.height - padding - ((val - minVal) / valueRange) * chartHeight;
+                    
+                    ctx.fillStyle = colors[index];
+                    ctx.beginPath();
+                    ctx.arc(x, y, 4, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+            });
+            
+            // Draw labels
+            ctx.fillStyle = '#6b7280';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            
+            // Date labels
+            allDates.forEach((date, i) => {
+                const x = padding + (chartWidth / (allDates.length - 1)) * i;
+                const formattedDate = new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                ctx.fillText(formattedDate, x, canvas.height - padding + 20);
+            });
+            
+            // Value labels
+            ctx.textAlign = 'right';
+            for (let i = 0; i <= 5; i++) {
+                const value = minVal + (valueRange / 5) * (5 - i);
+                const y = padding + (chartHeight / 5) * i;
+                ctx.fillText(value.toFixed(0), padding - 10, y + 4);
+            }
+            
+            // Legend
+            ctx.textAlign = 'left';
+            const legendY = 20;
+            topKPIs.forEach((kpiName, index) => {
+                const x = padding + index * 150;
+                ctx.fillStyle = colors[index];
+                ctx.fillRect(x, legendY, 12, 12);
+                ctx.fillStyle = '#374151';
+                ctx.fillText(kpiName.substring(0, 20), x + 18, legendY + 10);
+            });
+        }
+
+        // Render table with last 10 entries
+        function renderTable(dataToRender = null) {
+            const tbody = document.getElementById('detailsTableBody');
+            tbody.innerHTML = '';
+            
+            const data = dataToRender || allData.slice(0, 10);
+            
+            data.forEach(entry => {
+                const row = document.createElement('tr');
+                const statusClass = `status-${entry.status_color.toLowerCase()}`;
+                
+                row.innerHTML = `
+                    <td>${formatDate(entry.date)}</td>
+                    <td style="font-weight: 500;">${entry.kpi_name}</td>
+                    <td>${entry.kpi_value}</td>
+                    <td>
+                        <span class="status-badge ${statusClass}">
+                            ${entry.status_color}
+                        </span>
+                    </td>
+                    <td>${entry.notes}</td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        // Update last updated timestamp
+        function updateLastUpdated() {
+            if (allData.length > 0) {
+                const lastDate = new Date(allData[0].date);
+                document.getElementById('lastUpdated').textContent = lastDate.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+            }
+        }
+
+        // Format date helper
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+        }
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            
+            if (searchTerm === '') {
+                renderTable(allData.slice(0, 10));
+            } else {
+                const filtered = allData.filter(entry => {
+                    return (
+                        entry.kpi_name.toLowerCase().includes(searchTerm) ||
+                        entry.notes.toLowerCase().includes(searchTerm) ||
+                        entry.status_color.toLowerCase().includes(searchTerm)
+                    );
+                }).slice(0, 10);
+                
+                renderTable(filtered);
+            }
+        });
+
+        // Initialize dashboard
+        async function initDashboard() {
+            await loadConfig();
+            await loadCSVData();
+        }
+
+        // Load everything when page loads
+        window.addEventListener('DOMContentLoaded', initDashboard);
+        
+        // Redraw chart on window resize
+        window.addEventListener('resize', () => {
+            if (allData.length > 0) {
+                renderChart();
+            }
+        });
+    </script>
+</body>
+</html>
