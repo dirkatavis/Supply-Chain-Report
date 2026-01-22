@@ -87,8 +87,16 @@
         async function loadResponsibilities() {
             try {
                 const response = await fetch('config.yaml');
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch config.yaml: ${response.status}`);
+                }
                 const yamlText = await response.text();
                 const data = jsyaml.load(yamlText);
+                
+                // Validate data structure
+                if (!data || !data.general_responsibilities || !Array.isArray(data.general_responsibilities)) {
+                    throw new Error('Invalid YAML structure: missing general_responsibilities array');
+                }
                 
                 const container = document.getElementById('responsibilities-container');
                 container.innerHTML = '';
@@ -96,15 +104,31 @@
                 data.general_responsibilities.forEach(resp => {
                     const card = document.createElement('div');
                     card.className = 'border-l-4 border-blue-500 bg-gray-50 p-4 rounded-r-lg';
-                    card.innerHTML = `
-                        <h3 class="font-semibold text-gray-900 mb-2">${resp.title}</h3>
-                        <p class="text-sm text-gray-700 mb-2">${resp.description}</p>
-                        <p class="text-xs text-gray-500 font-medium">Owner: ${resp.owner}</p>
-                    `;
+                    
+                    const title = document.createElement('h3');
+                    title.className = 'font-semibold text-gray-900 mb-2';
+                    title.textContent = resp.title || 'N/A';
+                    
+                    const description = document.createElement('p');
+                    description.className = 'text-sm text-gray-700 mb-2';
+                    description.textContent = resp.description || 'N/A';
+                    
+                    const owner = document.createElement('p');
+                    owner.className = 'text-xs text-gray-500 font-medium';
+                    owner.textContent = 'Owner: ' + (resp.owner || 'N/A');
+                    
+                    card.appendChild(title);
+                    card.appendChild(description);
+                    card.appendChild(owner);
                     container.appendChild(card);
                 });
             } catch (error) {
                 console.error('Error loading responsibilities:', error);
+                const container = document.getElementById('responsibilities-container');
+                const errorMsg = document.createElement('p');
+                errorMsg.className = 'text-red-600 text-sm';
+                errorMsg.textContent = 'Failed to load responsibilities. Please check console for details.';
+                container.appendChild(errorMsg);
             }
         }
         
@@ -112,6 +136,9 @@
         async function loadStatusData() {
             try {
                 const response = await fetch('status.csv');
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch status.csv: ${response.status}`);
+                }
                 const csvText = await response.text();
                 
                 Papa.parse(csvText, {
@@ -120,17 +147,27 @@
                     complete: function(results) {
                         const data = results.data.filter(row => row.date); // Filter out empty rows
                         
-                        if (data.length > 0) {
-                            // Display current status (latest row)
-                            displayCurrentStatus(data[data.length - 1]);
-                            
-                            // Display progress chart (all rows)
-                            displayProgressChart(data);
+                        if (data.length === 0) {
+                            throw new Error('No valid data rows found in CSV');
                         }
+                        
+                        // Display current status (latest row)
+                        displayCurrentStatus(data[data.length - 1]);
+                        
+                        // Display progress chart (all rows)
+                        displayProgressChart(data);
+                    },
+                    error: function(error) {
+                        throw new Error('CSV parsing error: ' + error.message);
                     }
                 });
             } catch (error) {
                 console.error('Error loading status data:', error);
+                const statusContainer = document.getElementById('status-cards');
+                const errorMsg = document.createElement('p');
+                errorMsg.className = 'text-red-600 col-span-full';
+                errorMsg.textContent = 'Failed to load status data. Please check console for details.';
+                statusContainer.appendChild(errorMsg);
             }
         }
         
@@ -166,6 +203,12 @@
         
         // Display progress chart
         function displayProgressChart(data) {
+            // Validate we have data
+            if (!data || data.length === 0) {
+                console.error('No data available for chart');
+                return;
+            }
+            
             const ctx = document.getElementById('progressChart').getContext('2d');
             
             // Extract dates and metrics
