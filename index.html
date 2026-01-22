@@ -64,16 +64,37 @@
 
     <script>
         // RAG Status Function (Red-Amber-Green)
-        function getStatusColor(value) {
-            if (value >= 90) return 'status-green';
-            if (value >= 75) return 'status-amber';
+        function getStatusColor(value, metric) {
+            const percentage = calculatePercentage(value, metric);
+            if (percentage >= 90) return 'status-green';
+            if (percentage >= 75) return 'status-amber';
             return 'status-red';
         }
         
-        function getStatusText(value) {
-            if (value >= 90) return 'Excellent';
-            if (value >= 75) return 'Good';
+        function getStatusText(value, metric) {
+            const percentage = calculatePercentage(value, metric);
+            if (percentage >= 90) return 'Excellent';
+            if (percentage >= 75) return 'Good';
             return 'Needs Attention';
+        }
+        
+        // Calculate percentage based on metric range and direction
+        function calculatePercentage(value, metric) {
+            const range = metricRanges[metric];
+            if (!range) return 0;
+            
+            // Handle edge case where max equals min
+            if (range.max === range.min) {
+                return value === range.max ? 100 : 0;
+            }
+            
+            const normalizedValue = (value - range.min) / (range.max - range.min) * 100;
+            
+            // Invert for metrics where lower is better
+            let percentage = range.lowerIsBetter ? (100 - normalizedValue) : normalizedValue;
+            
+            // Clamp to 0-100 range to handle out-of-bounds values
+            return Math.max(0, Math.min(100, percentage));
         }
         
         // Format metric name
@@ -187,9 +208,9 @@
             
             metrics.forEach(metric => {
                 const value = latestData[metric];
-                const statusColor = getStatusColor(value);
-                const statusText = getStatusText(value);
-                const range = metricRanges[metric] || { min: 0, max: 100, unit: '%' };
+                const statusColor = getStatusColor(value, metric);
+                const statusText = getStatusText(value, metric);
+                const range = metricRanges[metric] || { min: 0, max: 100, unit: '', lowerIsBetter: false };
                 
                 const card = document.createElement('div');
                 card.className = 'bg-white rounded-lg shadow-md p-6 border-t-4 border-blue-500 hover:shadow-lg transition-shadow';
@@ -238,10 +259,10 @@
         
         // Define custom ranges for each metric
         const metricRanges = {
-            'glass_repair_completion': { min: 0, max: 20, unit: '' },
-            'pm_records_filed': { min: 0, max: 100, unit: '' },
-            'key_replacements_completed': { min: 0, max: 20, unit: '' },
-            'atl_ro_levels': { min: 200, max: 1000, unit: '' }
+            'glass_repair_completion': { min: 0, max: 20, unit: '', lowerIsBetter: true },
+            'pm_records_filed': { min: 0, max: 100, unit: '', lowerIsBetter: false },
+            'missing_keys': { min: 0, max: 20, unit: '', lowerIsBetter: true },
+            'atl_ro_levels': { min: 200, max: 1000, unit: '', lowerIsBetter: true }
         };
         
         // Store chart instances for cleanup
