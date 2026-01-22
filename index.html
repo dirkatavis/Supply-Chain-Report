@@ -83,10 +83,18 @@
             const range = metricRanges[metric];
             if (!range) return 0;
             
+            // Handle edge case where max equals min
+            if (range.max === range.min) {
+                return value === range.max ? 100 : 0;
+            }
+            
             const normalizedValue = (value - range.min) / (range.max - range.min) * 100;
             
             // Invert for metrics where lower is better
-            return range.lowerIsBetter ? (100 - normalizedValue) : normalizedValue;
+            let percentage = range.lowerIsBetter ? (100 - normalizedValue) : normalizedValue;
+            
+            // Clamp to 0-100 range to handle out-of-bounds values
+            return Math.max(0, Math.min(100, percentage));
         }
         
         // Format metric name
@@ -253,7 +261,7 @@
         const metricRanges = {
             'glass_repair_completion': { min: 0, max: 20, unit: '', lowerIsBetter: true },
             'pm_records_filed': { min: 0, max: 100, unit: '', lowerIsBetter: false },
-            'missing_keys': { min: 0, max: 20, unit: '', lowerIsBetter: true },
+            'key_replacements_completed': { min: 0, max: 20, unit: '', lowerIsBetter: true },
             'atl_ro_levels': { min: 200, max: 1000, unit: '', lowerIsBetter: true }
         };
         
