@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supply Chain Management Dashboard</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    
+    <!-- PapaParse for CSV -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    
+    <!-- js-yaml for YAML -->
+    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .status-green { background-color: #10b981; }
+        .status-amber { background-color: #f59e0b; }
+        .status-red { background-color: #ef4444; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="flex min-h-screen">
+        <!-- Sidebar for Responsibilities -->
+        <aside class="w-80 bg-white shadow-lg p-6 overflow-y-auto">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">General Responsibilities</h2>
+            <div id="responsibilities-container" class="space-y-4">
+                <!-- Responsibilities will be loaded here -->
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="flex-1 p-8">
+            <!-- Header -->
+            <header class="mb-8">
+                <h1 class="text-4xl font-bold text-gray-900 mb-2">Supply Chain Management Dashboard</h1>
+                <p class="text-gray-600">Executive Overview - Real-time Performance Metrics</p>
+            </header>
+            
+            <!-- Current Status Cards -->
+            <section class="mb-12">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6">Current Status</h2>
+                <div id="status-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+                    <!-- Cards will be loaded here -->
+                </div>
+            </section>
+            
+            <!-- Progress Over Time Chart -->
+            <section class="bg-white rounded-lg shadow-lg p-8">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6">Progress Over Time</h2>
+                <div class="h-96">
+                    <canvas id="progressChart"></canvas>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // RAG Status Function (Red-Amber-Green)
+        function getStatusColor(value) {
+            if (value >= 90) return 'status-green';
+            if (value >= 75) return 'status-amber';
+            return 'status-red';
+        }
+        
+        function getStatusText(value) {
+            if (value >= 90) return 'Excellent';
+            if (value >= 75) return 'Good';
+            return 'Needs Attention';
+        }
+        
+        // Format metric name
+        function formatMetricName(key) {
+            return key.split('_').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' ');
+        }
+        
+        // Load and display responsibilities from YAML
+        async function loadResponsibilities() {
+            try {
+                const response = await fetch('config.yaml');
+                const yamlText = await response.text();
+                const data = jsyaml.load(yamlText);
+                
+                const container = document.getElementById('responsibilities-container');
+                container.innerHTML = '';
+                
+                data.general_responsibilities.forEach(resp => {
+                    const card = document.createElement('div');
+                    card.className = 'border-l-4 border-blue-500 bg-gray-50 p-4 rounded-r-lg';
+                    card.innerHTML = `
+                        <h3 class="font-semibold text-gray-900 mb-2">${resp.title}</h3>
+                        <p class="text-sm text-gray-700 mb-2">${resp.description}</p>
+                        <p class="text-xs text-gray-500 font-medium">Owner: ${resp.owner}</p>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error loading responsibilities:', error);
+            }
+        }
+        
+        // Load and display status data from CSV
+        async function loadStatusData() {
+            try {
+                const response = await fetch('status.csv');
+                const csvText = await response.text();
+                
+                Papa.parse(csvText, {
+                    header: true,
+                    dynamicTyping: true,
+                    complete: function(results) {
+                        const data = results.data.filter(row => row.date); // Filter out empty rows
+                        
+                        if (data.length > 0) {
+                            // Display current status (latest row)
+                            displayCurrentStatus(data[data.length - 1]);
+                            
+                            // Display progress chart (all rows)
+                            displayProgressChart(data);
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading status data:', error);
+            }
+        }
+        
+        // Display current status cards
+        function displayCurrentStatus(latestData) {
+            const container = document.getElementById('status-cards');
+            container.innerHTML = '';
+            
+            // Get all metrics except date
+            const metrics = Object.keys(latestData).filter(key => key !== 'date');
+            
+            metrics.forEach(metric => {
+                const value = latestData[metric];
+                const statusColor = getStatusColor(value);
+                const statusText = getStatusText(value);
+                
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-lg shadow-md p-6 border-t-4 border-blue-500 hover:shadow-lg transition-shadow';
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-medium text-gray-600 uppercase">${formatMetricName(metric)}</h3>
+                        <div class="${statusColor} w-3 h-3 rounded-full"></div>
+                    </div>
+                    <div class="mb-2">
+                        <span class="text-4xl font-bold text-gray-900">${value}</span>
+                        <span class="text-2xl text-gray-500">%</span>
+                    </div>
+                    <p class="text-sm text-gray-600">${statusText}</p>
+                `;
+                container.appendChild(card);
+            });
+        }
+        
+        // Display progress chart
+        function displayProgressChart(data) {
+            const ctx = document.getElementById('progressChart').getContext('2d');
+            
+            // Extract dates and metrics
+            const dates = data.map(row => row.date);
+            const metrics = Object.keys(data[0]).filter(key => key !== 'date');
+            
+            // Create datasets for each metric
+            const datasets = metrics.map((metric, index) => {
+                const colors = [
+                    '#3b82f6', // blue
+                    '#10b981', // green
+                    '#f59e0b', // amber
+                    '#ef4444', // red
+                    '#8b5cf6', // purple
+                ];
+                
+                return {
+                    label: formatMetricName(metric),
+                    data: data.map(row => row[metric]),
+                    borderColor: colors[index % colors.length],
+                    backgroundColor: colors[index % colors.length] + '20',
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                };
+            });
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                padding: 15,
+                                font: {
+                                    size: 12,
+                                    weight: '500'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 13
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            min: 70,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                },
+                                font: {
+                                    size: 12
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: {
+                                    size: 12
+                                }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        }
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadResponsibilities();
+            loadStatusData();
+        });
+    </script>
+</body>
+</html>

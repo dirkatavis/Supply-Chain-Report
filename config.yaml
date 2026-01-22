@@ -1,0 +1,24 @@
+general_responsibilities:
+  - title: Supply Chain Operations
+    description: Oversee end-to-end supply chain processes including procurement, logistics, and inventory management
+    owner: Operations Team
+    
+  - title: Vendor Management
+    description: Maintain relationships with key suppliers and ensure service level agreements are met
+    owner: Procurement Team
+    
+  - title: Quality Assurance
+    description: Monitor product quality and implement continuous improvement initiatives
+    owner: Quality Team
+    
+  - title: Risk Management
+    description: Identify and mitigate supply chain risks including disruptions and compliance issues
+    owner: Risk & Compliance Team
+    
+  - title: Performance Analytics
+    description: Track KPIs and generate reports for stakeholder decision-making
+    owner: Analytics Team
+    
+  - title: Customer Satisfaction
+    description: Ensure timely delivery and high-quality service to end customers
+    owner: Customer Success Team
