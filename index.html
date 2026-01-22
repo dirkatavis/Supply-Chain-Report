@@ -385,17 +385,25 @@
             return config;
         }
 
-        // Simple CSV parser
+        // Simple CSV parser with better error handling
         function parseCSV(text) {
-            const lines = text.split('\n').filter(line => line.trim());
+            const lines = text.split('\n');
             const headers = lines[0].split(',').map(h => h.trim());
             const data = [];
             
             for (let i = 1; i < lines.length; i++) {
-                const values = lines[i].split(',').map(v => v.trim());
+                const line = lines[i].trim();
+                // Skip empty lines
+                if (!line) continue;
+                
+                const values = line.split(',').map(v => v.trim());
+                
+                // Skip lines with insufficient columns
+                if (values.length < headers.length) continue;
+                
                 const row = {};
                 headers.forEach((header, index) => {
-                    row[header] = values[index];
+                    row[header] = values[index] || '';
                 });
                 data.push(row);
             }
