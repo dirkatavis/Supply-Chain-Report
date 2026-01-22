@@ -83,6 +83,12 @@
             ).join(' ');
         }
         
+        // Sanitize metric name for valid HTML ID
+        function sanitizeMetricId(metric) {
+            // Convert metric name to valid HTML ID (alphanumeric, hyphens, underscores only)
+            return metric.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
+        }
+        
         // Load and display responsibilities from YAML
         async function loadResponsibilities() {
             try {
@@ -183,20 +189,49 @@
                 const value = latestData[metric];
                 const statusColor = getStatusColor(value);
                 const statusText = getStatusText(value);
+                const range = metricRanges[metric] || { min: 0, max: 100, unit: '%' };
                 
                 const card = document.createElement('div');
                 card.className = 'bg-white rounded-lg shadow-md p-6 border-t-4 border-blue-500 hover:shadow-lg transition-shadow';
-                card.innerHTML = `
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-sm font-medium text-gray-600 uppercase">${formatMetricName(metric)}</h3>
-                        <div class="${statusColor} w-3 h-3 rounded-full"></div>
-                    </div>
-                    <div class="mb-2">
-                        <span class="text-4xl font-bold text-gray-900">${value}</span>
-                        <span class="text-2xl text-gray-500">%</span>
-                    </div>
-                    <p class="text-sm text-gray-600">${statusText}</p>
-                `;
+                
+                // Create header div with metric name and status indicator
+                const header = document.createElement('div');
+                header.className = 'flex items-center justify-between mb-3';
+                
+                const title = document.createElement('h3');
+                title.className = 'text-sm font-medium text-gray-600 uppercase';
+                title.textContent = formatMetricName(metric);
+                
+                const statusIndicator = document.createElement('div');
+                statusIndicator.className = `${statusColor} w-3 h-3 rounded-full`;
+                
+                header.appendChild(title);
+                header.appendChild(statusIndicator);
+                
+                // Create value display
+                const valueDiv = document.createElement('div');
+                valueDiv.className = 'mb-2';
+                
+                const valueSpan = document.createElement('span');
+                valueSpan.className = 'text-4xl font-bold text-gray-900';
+                valueSpan.textContent = value;
+                
+                const unitSpan = document.createElement('span');
+                unitSpan.className = 'text-2xl text-gray-500';
+                unitSpan.textContent = range.unit;
+                
+                valueDiv.appendChild(valueSpan);
+                valueDiv.appendChild(unitSpan);
+                
+                // Create status text
+                const statusPara = document.createElement('p');
+                statusPara.className = 'text-sm text-gray-600';
+                statusPara.textContent = statusText;
+                
+                // Assemble card
+                card.appendChild(header);
+                card.appendChild(valueDiv);
+                card.appendChild(statusPara);
                 container.appendChild(card);
             });
         }
@@ -210,6 +245,9 @@
             'overall_efficiency': { min: 80, max: 100, unit: '%' }
         };
         
+        // Store chart instances for cleanup
+        let chartInstances = [];
+        
         // Display progress charts - one per metric
         function displayProgressChart(data) {
             // Validate we have data
@@ -217,6 +255,10 @@
                 console.error('No data available for chart');
                 return;
             }
+            
+            // Destroy existing chart instances to prevent memory leaks
+            chartInstances.forEach(chart => chart.destroy());
+            chartInstances = [];
             
             const container = document.getElementById('charts-container');
             container.innerHTML = '';
@@ -226,15 +268,15 @@
             const metrics = Object.keys(data[0]).filter(key => key !== 'date');
             
             const colors = [
-                '#3b82f6', // blue
-                '#10b981', // green
-                '#f59e0b', // amber
-                '#ef4444', // red
-                '#8b5cf6', // purple
+                { border: '#3b82f6', background: '#3b82f633' }, // blue
+                { border: '#10b981', background: '#10b98133' }, // green
+                { border: '#f59e0b', background: '#f59e0b33' }, // amber
+                { border: '#ef4444', background: '#ef444433' }, // red
+                { border: '#8b5cf6', background: '#8b5cf633' }, // purple
             ];
             
-            // Create a separate chart for each metric
-            metrics.forEach((metric, index) => {
+            // Create a separate chart for each metric (limit to 5 for performance)
+            metrics.slice(0, 5).forEach((metric, index) => {
                 // Create chart container
                 const chartDiv = document.createElement('div');
                 chartDiv.className = 'bg-gray-50 rounded-lg p-6 border border-gray-200';
@@ -247,7 +289,9 @@
                 canvasWrapper.className = 'h-64';
                 
                 const canvas = document.createElement('canvas');
-                canvas.id = `chart-${metric}`;
+                canvas.id = `chart-${sanitizeMetricId(metric)}`;
+                canvas.setAttribute('role', 'img');
+                canvas.setAttribute('aria-label', `Line chart showing ${formatMetricName(metric)} over time`);
                 
                 canvasWrapper.appendChild(canvas);
                 chartDiv.appendChild(title);
@@ -256,18 +300,19 @@
                 
                 // Get range for this metric, or use default
                 const range = metricRanges[metric] || { min: 0, max: 100, unit: '%' };
+                const colorScheme = colors[index % colors.length];
                 
                 // Create the chart
                 const ctx = canvas.getContext('2d');
-                new Chart(ctx, {
+                const chartInstance = new Chart(ctx, {
                     type: 'line',
                     data: {
                         labels: dates,
                         datasets: [{
                             label: formatMetricName(metric),
                             data: data.map(row => row[metric]),
-                            borderColor: colors[index % colors.length],
-                            backgroundColor: colors[index % colors.length] + '20',
+                            borderColor: colorScheme.border,
+                            backgroundColor: colorScheme.background,
                             tension: 0.3,
                             fill: true,
                             pointRadius: 5,
@@ -334,6 +379,9 @@
                         }
                     }
                 });
+                
+                // Store chart instance for cleanup
+                chartInstances.push(chartInstance);
             });
         }
         
