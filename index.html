@@ -262,7 +262,10 @@
             'glass_repair_completion': { min: 0, max: 20, unit: '', lowerIsBetter: true },
             'pm_records_filed': { min: 0, max: 100, unit: '', lowerIsBetter: false },
             'missing_keys': { min: 0, max: 20, unit: '', lowerIsBetter: true },
-            'atl_ro_levels': { min: 200, max: 1000, unit: '', lowerIsBetter: true }
+            'atl_ro_levels': { min: 200, max: 1000, unit: '', lowerIsBetter: true },
+            'oil_5_30': { min: 5, max: 50, unit: '"', lowerIsBetter: false },
+            'oil_0_20': { min: 5, max: 50, unit: '"', lowerIsBetter: false },
+            'oil_waste': { min: 5, max: 50, unit: '"', lowerIsBetter: false }
         };
         
         // Store chart instances for cleanup
@@ -295,8 +298,8 @@
                 { border: '#8b5cf6', background: '#8b5cf633' }, // purple
             ];
             
-            // Create a separate chart for each metric (limit to 5 for performance)
-            metrics.slice(0, 5).forEach((metric, index) => {
+            // Create a separate chart for each metric (limit to 10 for performance)
+            metrics.slice(0, 10).forEach((metric, index) => {
                 // Create chart container
                 const chartDiv = document.createElement('div');
                 chartDiv.className = 'bg-gray-50 rounded-lg p-6 border border-gray-200';
