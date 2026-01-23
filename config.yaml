@@ -11,3 +11,6 @@ general_responsibilities:
   - title: Repair Order Closeout Processing
     description: Manage repair order closeout processing to ensure timely completion and accurate documentation
     owner: Dirk Steele
+  - title: Supply Management
+    description: Monitor and Report on Airport Oil Levels
+    owner: Dirk Steele
