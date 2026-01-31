@@ -63,18 +63,43 @@
     </div>
 
     <script>
-        // RAG Status Function (Red-Amber-Green)
+
+        // Configurable status thresholds for each metric
+        const statusConfig = {
+            // Example per-metric config:
+            // 'glass_repair_completion': { green: 90, amber: 75 },
+            // Default config applies if metric not listed
+            default: { green: 90, amber: 75, nullIs: 'red' },
+            glass_repair_completion: { green: 85, amber: 70, nullIs: 'red' },
+            pm_records_filed: { green: 95, amber: 80, nullIs: 'red' },
+            missing_keys: { green: 90, amber: 75, nullIs: 'red' },
+            atl_ro_levels: { green: 92, amber: 80, nullIs: 'red' },
+            oil_5_30: { green: 90, amber: 75, nullIs: 'red' },
+            oil_0_20: { green: 90, amber: 75, nullIs: 'red' },
+            oil_waste: { green: 90, amber: 75, nullIs: 'red' }
+        };
+
+        // RAG Status Function (Red-Amber-Green) using config
         function getStatusColor(value, metric) {
+            const config = statusConfig[metric] || statusConfig.default;
+            if (value === null || value === undefined || isNaN(value)) {
+                // Edge case: null/undefined/NaN
+                return config.nullIs === 'green' ? 'status-green' : (config.nullIs === 'amber' ? 'status-amber' : 'status-red');
+            }
             const percentage = calculatePercentage(value, metric);
-            if (percentage >= 90) return 'status-green';
-            if (percentage >= 75) return 'status-amber';
+            if (percentage >= config.green) return 'status-green';
+            if (percentage >= config.amber) return 'status-amber';
             return 'status-red';
         }
-        
+
         function getStatusText(value, metric) {
+            const config = statusConfig[metric] || statusConfig.default;
+            if (value === null || value === undefined || isNaN(value)) {
+                return config.nullIs === 'green' ? 'Excellent' : (config.nullIs === 'amber' ? 'Good' : 'Needs Attention');
+            }
             const percentage = calculatePercentage(value, metric);
-            if (percentage >= 90) return 'Excellent';
-            if (percentage >= 75) return 'Good';
+            if (percentage >= config.green) return 'Excellent';
+            if (percentage >= config.amber) return 'Good';
             return 'Needs Attention';
         }
         
