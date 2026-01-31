@@ -1,4 +1,5 @@
 import yaml
+import os
 def extract_responsibilities(yaml_text):
     try:
         data = yaml.safe_load(yaml_text)
@@ -81,8 +82,9 @@ def check_yaml(path):
     try:
         with open(path, encoding='utf-8') as f:
             data = f.read()
-        if not re.search(r'^\s*\w+:', data, re.MULTILINE):
-            raise Exception('YAML missing key: value')
+        parsed = yaml.safe_load(data)
+        if not isinstance(parsed, dict) or not parsed:
+            raise Exception('YAML does not contain a valid mapping/object')
         print('config.yaml: OK')
     except Exception as e:
         print('config.yaml:', e)
@@ -122,10 +124,14 @@ def test_calculate_trend():
     assert calculate_trend(sample, 'kpi') == 10, 'Trend should be last minus first'
     print('test_calculate_trend: OK')
 
-if __name__ == "__main__":
-    check_csv('status.csv')
-    check_yaml('config.yaml')
-    print('All data checks passed.')
+def main():
+    if os.path.exists('status.csv') and os.path.exists('config.yaml'):
+        check_csv('status.csv')
+        check_yaml('config.yaml')
+        print('All data checks passed.')
+    else:
+        print('Error: One or more data files are missing.')
+        sys.exit(1)
 
     # Run additional unit tests (breadth-first, all areas)
     test_get_recent_kpi_updates()
@@ -134,3 +140,6 @@ if __name__ == "__main__":
     test_get_metric_series()
     test_extract_responsibilities()
     test_render_kpi_card()
+
+if __name__ == "__main__":
+    main()
