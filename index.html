@@ -80,11 +80,42 @@
             oil_waste: { green: 90, amber: 75, nullIs: 'red' }
         };
 
-        // RAG Status Function (Red-Amber-Green) using config
+        let referenceLinesConfig = {};
+
+        // Load ReferenceLines from YAML
+        async function loadReferenceLinesConfig() {
+            try {
+                const response = await fetch('config.yaml');
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch config.yaml: ${response.status}`);
+                }
+                const yamlText = await response.text();
+                const data = jsyaml.load(yamlText);
+                if (data && data.ReferenceLines) {
+                    referenceLinesConfig = data.ReferenceLines;
+                }
+            } catch (error) {
+                console.error('Error loading ReferenceLines config:', error);
+                referenceLinesConfig = {};
+            }
+        }
+
+        // Override getStatusColor to use reference line logic
         function getStatusColor(value, metric) {
+            const refLine = referenceLinesConfig[metric];
+            if (refLine && typeof refLine.reference_line === 'number' && refLine.direction) {
+                if (value === null || value === undefined || isNaN(value)) {
+                    return 'status-red';
+                }
+                if (refLine.direction === 'above') {
+                    return value >= refLine.reference_line ? 'status-green' : 'status-red';
+                } else {
+                    return value <= refLine.reference_line ? 'status-green' : 'status-red';
+                }
+            }
+            // fallback to legacy config
             const config = statusConfig[metric] || statusConfig.default;
             if (value === null || value === undefined || isNaN(value)) {
-                // Edge case: null/undefined/NaN
                 return config.nullIs === 'green' ? 'status-green' : (config.nullIs === 'amber' ? 'status-amber' : 'status-red');
             }
             const percentage = calculatePercentage(value, metric);
@@ -94,6 +125,18 @@
         }
 
         function getStatusText(value, metric) {
+            const refLine = referenceLinesConfig[metric];
+            if (refLine && typeof refLine.reference_line === 'number' && refLine.direction) {
+                if (value === null || value === undefined || isNaN(value)) {
+                    return 'Needs Attention';
+                }
+                if (refLine.direction === 'above') {
+                    return value >= refLine.reference_line ? 'Excellent' : 'Needs Attention';
+                } else {
+                    return value <= refLine.reference_line ? 'Excellent' : 'Needs Attention';
+                }
+            }
+            // fallback to legacy config
             const config = statusConfig[metric] || statusConfig.default;
             if (value === null || value === undefined || isNaN(value)) {
                 return config.nullIs === 'green' ? 'Excellent' : (config.nullIs === 'amber' ? 'Good' : 'Needs Attention');
@@ -288,7 +331,7 @@
             'glass_repair_completion': { min: 0, max: 20, unit: '', lowerIsBetter: true },
             'pm_records_filed': { min: 0, max: 100, unit: '', lowerIsBetter: false },
             'missing_keys': { min: 0, max: 20, unit: '', lowerIsBetter: true },
-            'atl_ro_levels': { min: 200, max: 1000, unit: '', lowerIsBetter: true },
+            'atl_ro_levels': { min: 200, max: 800, unit: '', lowerIsBetter: true },
             'oil_5_30': { min: 5, max: 50, unit: '"', lowerIsBetter: false },
             'oil_0_20': { min: 5, max: 50, unit: '"', lowerIsBetter: false },
             'oil_waste': { min: 5, max: 50, unit: '"', lowerIsBetter: false }
@@ -349,7 +392,14 @@
                 
                 // Get range for this metric, or use default
                 const range = metricRanges[metric] || { min: 0, max: 100, unit: '%' };
-                const colorScheme = colors[index % colors.length];
+                
+                // Special color for ATL RO Levels to avoid red-on-red with reference line
+                let colorScheme;
+                if (metric === 'atl_ro_levels') {
+                    colorScheme = { border: '#10b981', background: '#10b98133' }; // green
+                } else {
+                    colorScheme = colors[index % colors.length];
+                }
                 
                 // Create the chart
                 const ctx = canvas.getContext('2d');
@@ -365,20 +415,21 @@
                     borderWidth: 3
                 }];
                 
-                // Add horizontal line at Y=10 for Glass Repair Completion
-                if (metric === 'glass_repair_completion') {
-                    datasets.push({
-                        label: 'Target Line',
-                        data: Array(dates.length).fill(10),
-                        borderColor: 'red',
-                        backgroundColor: 'transparent',
-                        borderWidth: 5,
-                        pointRadius: 0,
-                        pointHoverRadius: 0,
-                        fill: false,
-                        tension: 0
-                    });
-                }
+                    // Add horizontal reference line if defined in config
+                    const refLine = referenceLinesConfig[metric];
+                    if (refLine && typeof refLine.reference_line === 'number') {
+                        datasets.push({
+                            label: `Reference Line (${refLine.reference_line}${range.unit})`,
+                            data: Array(dates.length).fill(refLine.reference_line),
+                            borderColor: 'red',
+                            backgroundColor: 'transparent',
+                            borderWidth: 5,
+                            pointRadius: 0,
+                            pointHoverRadius: 0,
+                            fill: false,
+                            tension: 0
+                        });
+                    }
                 
                 const chartInstance = new Chart(ctx, {
                     type: 'line',
@@ -452,7 +503,8 @@
         }
         
         // Initialize dashboard
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
+            await loadReferenceLinesConfig();
             loadResponsibilities();
             loadStatusData();
         });

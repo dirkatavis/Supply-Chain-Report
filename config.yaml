@@ -1,3 +1,31 @@
+###############################################################
+# CONFIGURATION FILE FOR SUPPLY CHAIN DASHBOARD
+#
+# How to use:
+# - To add or edit responsibilities, update the general_responsibilities section below.
+# - To add or change chart reference lines and status logic, update the ReferenceLines section.
+#
+## ReferenceLines:
+#   - reference_line: The Y-value for the horizontal line on the chart (the threshold).
+#   - direction: 'above' or 'below'.
+#       - direction: above
+#           * The metric is EXCELLENT if its value is greater than or equal to the reference line (metric >= reference_line).
+#           * The metric is NEEDS ATTENTION if its value is less than the reference line (metric < reference_line).
+#           * Example: For glass_repair_completion, direction: above means 10 or more is EXCELLENT, below 10 is NEEDS ATTENTION.
+#       - direction: below
+#           * The metric is EXCELLENT if its value is less than or equal to the reference line (metric <= reference_line).
+#           * The metric is NEEDS ATTENTION if its value is greater than the reference line (metric > reference_line).
+#           * Example: For oil_waste, direction: below means 40 or less is EXCELLENT, above 40 is NEEDS ATTENTION.
+#
+# Example ReferenceLines entry:
+#   oil_waste:
+#     reference_line: 40
+#     direction: below
+#   glass_repair_completion:
+#     reference_line: 10
+#     direction: above
+#
+###############################################################
 general_responsibilities:
   - title: Glass Damage Repair/Replacement Program
     description: Review all glass damage and determine appropriate repair or replacement actions.
@@ -14,3 +42,30 @@ general_responsibilities:
   - title: Supply Management
     description: Monitor and Report on Airport Oil Levels
     owner: Dirk Steele
+
+###############################################################
+# Reference lines for each KPI chart and status logic
+# Add a new entry for any metric you want a reference line for
+###############################################################
+ReferenceLines:
+  glass_repair_completion:
+    reference_line: 10
+    direction: below
+  pm_records_filed:
+    reference_line: 30
+    direction: below
+  missing_keys:
+    reference_line: 5
+    direction: below
+  oil_5_30:
+    reference_line: 20
+    direction: above
+  oil_0_20:
+    reference_line: 20
+    direction: above
+  oil_waste:
+    reference_line: 40
+    direction: below
+  atl_ro_levels:
+    reference_line: 250
+    direction: below
