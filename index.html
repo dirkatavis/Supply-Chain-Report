@@ -353,21 +353,38 @@
                 
                 // Create the chart
                 const ctx = canvas.getContext('2d');
+                const datasets = [{
+                    label: formatMetricName(metric),
+                    data: data.map(row => row[metric]),
+                    borderColor: colorScheme.border,
+                    backgroundColor: colorScheme.background,
+                    tension: 0.3,
+                    fill: true,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    borderWidth: 3
+                }];
+                
+                // Add horizontal line at Y=10 for Glass Repair Completion
+                if (metric === 'glass_repair_completion') {
+                    datasets.push({
+                        label: 'Target Line',
+                        data: Array(dates.length).fill(10),
+                        borderColor: 'red',
+                        backgroundColor: 'transparent',
+                        borderWidth: 5,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        fill: false,
+                        tension: 0
+                    });
+                }
+                
                 const chartInstance = new Chart(ctx, {
                     type: 'line',
                     data: {
                         labels: dates,
-                        datasets: [{
-                            label: formatMetricName(metric),
-                            data: data.map(row => row[metric]),
-                            borderColor: colorScheme.border,
-                            backgroundColor: colorScheme.background,
-                            tension: 0.3,
-                            fill: true,
-                            pointRadius: 5,
-                            pointHoverRadius: 7,
-                            borderWidth: 3
-                        }]
+                        datasets: datasets
                     },
                     options: {
                         responsive: true,
