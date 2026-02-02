@@ -78,3 +78,39 @@ General Responsibilities:
 ```
 
 After updating, commit and push the changes to GitHub. The dashboard will automatically refresh with the new data when accessed.
+
+## 🧪 Data Validation Test
+
+Before merging to dev/main, run the minimal data validation script:
+
+```bash
+# Always start by creating a new branch for your feature
+# Example:
+git switch -c feature/<your_feature_name>
+
+# Run the test script
+node test-data.js
+```
+
+This script checks for basic errors in status.csv and config.yaml. It is also run automatically on pull requests to dev/main via GitHub Actions.
+
+See .github/workflows/test.yml for CI details.
+
+## 🧪 Test Coverage
+
+This project includes automated tests for the following areas:
+
+- **CSV/YAML Validation**: Checks for correct structure and required fields in status.csv and config.yaml.
+- **KPI Data Processing**: Validates recent KPI extraction and trend calculations.
+- **Status/Color Mapping**: Ensures correct mapping of percentages to status colors.
+- **Chart Data Preparation**: Tests extraction of metric series for charting.
+- **Responsibility Extraction**: Verifies parsing of General Responsibilities from YAML.
+- **UI Rendering Logic**: Confirms correct HTML generation for KPI cards (logic only).
+
+To run all tests:
+
+```bash
+python test_data.py
+```
+
+All tests print a result; any failure will halt execution and print an error.
