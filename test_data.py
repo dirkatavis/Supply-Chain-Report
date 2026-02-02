@@ -1,7 +1,12 @@
+"""
+Data and config validation tests for Supply-Chain-Report dashboard.
+Validates YAML, CSV, and dashboard logic.
+"""
 import os
 import sys
 import yaml
 def extract_responsibilities(yaml_text):
+    """Extracts the General Responsibilities list from YAML text."""
     try:
         data = yaml.safe_load(yaml_text)
         return data.get('General Responsibilities', [])
@@ -9,6 +14,7 @@ def extract_responsibilities(yaml_text):
         return []
 
 def test_extract_responsibilities():
+    """Test extraction of responsibilities from sample YAML."""
     sample_yaml = """
 Name: Test User
 Role: Test Role
@@ -25,14 +31,26 @@ General Responsibilities:
 
 # Placeholder for UI rendering logic (logic only, not actual DOM)
 def render_kpi_card(metric, value, status):
-    return f"<div class='card {status}'><span>{metric}</span><span>{value}</span></div>"
+    """Render a KPI card as HTML (logic only)."""
+    return (
+        f"<div class='card {status}'>"
+        f"<span>{metric}</span>"
+        f"<span>{value}</span>"
+        f"</div>"
+    )
 
 def test_render_kpi_card():
+    """Test rendering of KPI card HTML."""
     html = render_kpi_card('Inventory', 100, 'status-green')
-    assert 'Inventory' in html and '100' in html and 'status-green' in html, 'Card HTML should contain all fields'
+    assert (
+        'Inventory' in html and '100' in html and 'status-green' in html
+    ), (
+        'Card HTML should contain all fields'
+    )
     print('test_render_kpi_card: OK')
 
 def get_status_color(percentage):
+    """Return status color string based on percentage value."""
     if percentage >= 90:
         return 'status-green'
     if percentage >= 75:
@@ -40,9 +58,14 @@ def get_status_color(percentage):
     return 'status-red'
 
 def test_get_status_color():
+    """Test status color logic for various percentages."""
     assert get_status_color(95) == 'status-green', 'Should be green for >=90%'
-    assert get_status_color(80) == 'status-amber', 'Should be amber for >=75%'
-    assert get_status_color(60) == 'status-red', 'Should be red for <75%'
+    assert get_status_color(80) == 'status-amber', (
+        'Should be amber for >=75%'
+    )
+    assert get_status_color(60) == 'status-red', (
+        'Should be red for <75%'
+    )
     print('test_get_status_color: OK')
 
 def test_reference_lines_config():
@@ -52,10 +75,18 @@ def test_reference_lines_config():
     ref = data.get('ReferenceLines', {})
     assert isinstance(ref, dict), 'ReferenceLines should be a dict'
     for metric, conf in ref.items():
-        assert 'reference_line' in conf, f"{metric} missing reference_line"
-        assert 'direction' in conf, f"{metric} missing direction"
-        assert conf['direction'] in ('above', 'below'), f"{metric} direction must be 'above' or 'below'"
-        assert isinstance(conf['reference_line'], (int, float)), f"{metric} reference_line must be a number"
+        assert 'reference_line' in conf, (
+            f"{metric} missing reference_line"
+        )
+        assert 'direction' in conf, (
+            f"{metric} missing direction"
+        )
+        assert conf['direction'] in ('above', 'below'), (
+            f"{metric} direction must be 'above' or 'below'"
+        )
+        assert isinstance(conf['reference_line'], (int, float)), (
+            f"{metric} reference_line must be a number"
+        )
     print('test_reference_lines_config: OK')
 
 def test_status_logic():
@@ -66,14 +97,25 @@ def test_status_logic():
             return 'Needs Attention'
         if direction == 'above':
             return 'Excellent' if value >= ref_line else 'Needs Attention'
-        else:
-            return 'Excellent' if value <= ref_line else 'Needs Attention'
+        return 'Excellent' if value <= ref_line else 'Needs Attention'
     # Test 'above'
     assert get_status(15, 10, 'above') == 'Excellent', 'Above: value >= line should be Excellent'
-    assert get_status(5, 10, 'above') == 'Needs Attention', 'Above: value < line should be Needs Attention'
+    assert (
+        get_status(5, 10, 'above') == 'Needs Attention'
+    ), (
+        'Above: value < line should be Needs Attention'
+    )
     # Test 'below'
-    assert get_status(5, 10, 'below') == 'Excellent', 'Below: value <= line should be Excellent'
-    assert get_status(15, 10, 'below') == 'Needs Attention', 'Below: value > line should be Needs Attention'
+    assert (
+        get_status(5, 10, 'below') == 'Excellent'
+    ), (
+        'Below: value <= line should be Excellent'
+    )
+    assert (
+        get_status(15, 10, 'below') == 'Needs Attention'
+    ), (
+        'Below: value > line should be Needs Attention'
+    )
     print('test_status_logic: OK')
 
 def test_missing_or_invalid_reference_line():
@@ -87,10 +129,14 @@ def test_missing_or_invalid_reference_line():
         pass
     # Invalid direction
     conf = {'reference_line': 10, 'direction': 'sideways'}
-    assert conf['direction'] not in ('above', 'below'), 'Invalid direction should not be accepted'
+    assert conf['direction'] not in ('above', 'below'), (
+        'Invalid direction should not be accepted'
+    )
     # Non-numeric reference_line
     conf = {'reference_line': 'ten', 'direction': 'above'}
-    assert not isinstance(conf['reference_line'], (int, float)), 'Non-numeric reference_line should not be accepted'
+    assert not isinstance(conf['reference_line'], (int, float)), (
+        'Non-numeric reference_line should not be accepted'
+    )
     print('test_missing_or_invalid_reference_line: OK')
 
 
@@ -109,11 +155,13 @@ def check_yaml(path):
 
 # --- Additional KPI Data Processing Tests ---
 def get_recent_kpi_updates(data, count):
+    """Return the most recent KPI updates from data."""
     # Assumes data is a list of dicts with 'date' key in YYYY-MM-DD format
     sorted_data = sorted(data, key=lambda x: x['date'], reverse=True)
     return sorted_data[:count]
 
 def test_get_recent_kpi_updates():
+    """Test recent KPI update extraction logic."""
     sample = [
         {'date': '2026-01-01', 'kpi': 1},
         {'date': '2026-01-03', 'kpi': 3},
@@ -125,6 +173,7 @@ def test_get_recent_kpi_updates():
     print('test_get_recent_kpi_updates: OK')
 
 def calculate_trend(data, metric):
+    """Calculate the trend (difference) for a metric over time."""
     # Returns the difference between the last and first value for a metric
     if not data or metric not in data[0]:
         return None
@@ -132,6 +181,7 @@ def calculate_trend(data, metric):
     return sorted_data[-1][metric] - sorted_data[0][metric]
 
 def test_calculate_trend():
+    """Test trend calculation for a metric."""
     sample = [
         {'date': '2026-01-01', 'kpi': 10},
         {'date': '2026-01-02', 'kpi': 15},
