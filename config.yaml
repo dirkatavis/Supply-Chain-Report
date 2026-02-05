@@ -28,7 +28,7 @@
 ###############################################################
 general_responsibilities:
   - title: Glass Damage Repair/Replacement Program
-    description: Review all glass damage and determine appropriate repair or replacement actions.
+    description: Review all glass damage and determine appropriate repair or replacement actions. Upon new glass being replaced conduct dynamic calibration to ensure proper functioning. 
     owner: Dirk Steele
   - title: PM Records Management
     description: Oversee onsite and local market PM Records Management to ensure compliance with regulatory standards
