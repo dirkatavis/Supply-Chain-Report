@@ -68,10 +68,10 @@
         // Configurable status thresholds for each metric
         const statusConfig = {
             // Example per-metric config:
-            // 'glass_repair_completion': { green: 90, amber: 75 },
+            // 'glass_pending_repair': { green: 90, amber: 75 },
             // Default config applies if metric not listed
             default: { green: 90, amber: 75, nullIs: 'red' },
-            glass_repair_completion: { green: 8, amber: 7, nullIs: 'red' },
+            glass_pending_repair: { green: 8, amber: 7, nullIs: 'red' },
             pm_records_filed: { green: 9, amber: 8, nullIs: 'red' },
             missing_keys: { green: 9, amber: 7, nullIs: 'red' },
             atl_ro_levels: { green: 92, amber: 8, nullIs: 'red' },
@@ -328,7 +328,7 @@
         
         // Define custom ranges for each metric
         const metricRanges = {
-            'glass_repair_completion': { min: 0, max: 20, unit: '', lowerIsBetter: true },
+            'glass_pending_repair': { min: 0, max: 20, unit: '', lowerIsBetter: true },
             'pm_records_filed': { min: 0, max: 100, unit: '', lowerIsBetter: false },
             'missing_keys': { min: 0, max: 20, unit: '', lowerIsBetter: true },
             'atl_ro_levels': { min: 200, max: 800, unit: '', lowerIsBetter: true },

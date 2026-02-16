@@ -11,7 +11,7 @@
 #       - direction: above
 #           * The metric is EXCELLENT if its value is greater than or equal to the reference line (metric >= reference_line).
 #           * The metric is NEEDS ATTENTION if its value is less than the reference line (metric < reference_line).
-#           * Example: For glass_repair_completion, direction: above means 10 or more is EXCELLENT, below 10 is NEEDS ATTENTION.
+#           * Example: For glass_pending_repair, direction: above means 10 or more is EXCELLENT, below 10 is NEEDS ATTENTION.
 #       - direction: below
 #           * The metric is EXCELLENT if its value is less than or equal to the reference line (metric <= reference_line).
 #           * The metric is NEEDS ATTENTION if its value is greater than the reference line (metric > reference_line).
@@ -21,7 +21,7 @@
 #   oil_waste:
 #     reference_line: 40
 #     direction: below
-#   glass_repair_completion:
+#   glass_pending_repair:
 #     reference_line: 10
 #     direction: above
 #
@@ -48,7 +48,7 @@ general_responsibilities:
 # Add a new entry for any metric you want a reference line for
 ###############################################################
 ReferenceLines:
-  glass_repair_completion:
+  glass_pending_repair:
     reference_line: 10
     direction: below
   pm_records_filed:
