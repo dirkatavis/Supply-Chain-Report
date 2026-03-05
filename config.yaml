@@ -57,10 +57,10 @@ ReferenceLines:
   missing_keys:
     reference_line: 5
     direction: below
-  oil_5_30:
+  oil_0_20:
     reference_line: 20
     direction: above
-  oil_0_20:
+  oil_5_30:
     reference_line: 20
     direction: above
   oil_waste:

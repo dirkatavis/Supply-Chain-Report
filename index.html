@@ -75,8 +75,8 @@
             pm_records_filed: { green: 9, amber: 8, nullIs: 'red' },
             missing_keys: { green: 9, amber: 7, nullIs: 'red' },
             atl_ro_levels: { green: 92, amber: 8, nullIs: 'red' },
-            oil_5_30: { green: 90, amber: 75, nullIs: 'red' },
             oil_0_20: { green: 90, amber: 75, nullIs: 'red' },
+            oil_5_30: { green: 90, amber: 75, nullIs: 'red' },
             oil_waste: { green: 90, amber: 75, nullIs: 'red' }
         };
 
@@ -272,8 +272,27 @@
             const container = document.getElementById('status-cards');
             container.innerHTML = '';
             
-            // Get all metrics except date
+            // Define explicit order for metrics
+            const metricOrder = [
+                'glass_pending_repair',
+                'pm_records_filed',
+                'missing_keys',
+                'atl_ro_levels',
+                'oil_0_20',
+                'oil_5_30',
+                'oil_waste'
+            ];
+            
+            // Get all metrics except date, and sort them according to metricOrder
             const metrics = Object.keys(latestData).filter(key => key !== 'date');
+            metrics.sort((a, b) => {
+                const indexA = metricOrder.indexOf(a);
+                const indexB = metricOrder.indexOf(b);
+                if (indexA === -1 && indexB === -1) return 0;
+                if (indexA === -1) return 1;
+                if (indexB === -1) return -1;
+                return indexA - indexB;
+            });
             
             metrics.forEach(metric => {
                 const value = latestData[metric];
@@ -332,8 +351,8 @@
             'pm_records_filed': { min: 0, max: 100, unit: '', lowerIsBetter: false },
             'missing_keys': { min: 0, max: 20, unit: '', lowerIsBetter: true },
             'atl_ro_levels': { min: 200, max: 800, unit: '', lowerIsBetter: true },
-            'oil_5_30': { min: 5, max: 50, unit: '"', lowerIsBetter: false },
             'oil_0_20': { min: 5, max: 50, unit: '"', lowerIsBetter: false },
+            'oil_5_30': { min: 5, max: 50, unit: '"', lowerIsBetter: false },
             'oil_waste': { min: 5, max: 50, unit: '"', lowerIsBetter: false }
         };
         
@@ -355,9 +374,30 @@
             const container = document.getElementById('charts-container');
             container.innerHTML = '';
             
+            // Define explicit order for metrics
+            const metricOrder = [
+                'glass_pending_repair',
+                'pm_records_filed',
+                'missing_keys',
+                'atl_ro_levels',
+                'oil_0_20',
+                'oil_5_30',
+                'oil_waste'
+            ];
+            
             // Extract dates and metrics
             const dates = data.map(row => row.date);
             const metrics = Object.keys(data[0]).filter(key => key !== 'date');
+            
+            // Sort metrics according to metricOrder
+            metrics.sort((a, b) => {
+                const indexA = metricOrder.indexOf(a);
+                const indexB = metricOrder.indexOf(b);
+                if (indexA === -1 && indexB === -1) return 0;
+                if (indexA === -1) return 1;
+                if (indexB === -1) return -1;
+                return indexA - indexB;
+            });
             
             const colors = [
                 { border: '#3b82f6', background: '#3b82f633' }, // blue
