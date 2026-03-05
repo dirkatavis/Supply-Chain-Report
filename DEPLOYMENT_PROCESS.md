@@ -1,39 +1,34 @@
-# Deployment & Branching Process
+# Dashboard Deployment & Development Process
 
-## Branching Strategy
-- **main**: The production branch. Only stable, reviewed, and tested code is merged here. GitHub Pages is configured to publish the live dashboard from this branch.
-- **feature/* or dev**: Feature development and staging branches. All new features, bug fixes, and experiments are developed here. Example: `feature/GraphLine`.
-- **Pull Requests**: All changes are proposed via pull requests from feature branches into `main`. Code is reviewed and tested before merging.
+The process ensures safe, reliable updates and consistent behavior between your local workspace and the live site.
 
-## Deployment Workflow
-1. **Development**
-   - Developers create or switch to a feature branch (e.g., `feature/GraphLine`).
-   - All changes and testing are done in this branch.
-   - Optionally, GitHub Pages can be configured to publish from the feature branch for preview/testing (e.g., for QA or stakeholder review).
+## 1. Branching Strategy
+- **main**: The production branch. Only stable, reviewed code is merged here for live deployment.
+- **feature/* branches**: All new features, renaming, and fixes are developed and tested here first.
 
-2. **Testing & Review**
-   - Once a feature is ready, a pull request is opened from the feature branch to `main`.
-   - Automated checks (tests, linting) run via GitHub Actions (if configured).
-   - Code is reviewed by team members.
+## 2. Development & Local Testing
+- **Create Branch:** `git checkout -b feature/your-fix-name`
+- **Make Changes:** Update HTML/JS/CSS, YAML config, or CSV headers.
+- **Run Local Server:** Use `python launch.py` to preview. 
+- **Inspect Logic:** Always press **F12** to check the **Console**. Verify that data headers from your spreadsheet match the keys in the code exactly to avoid scale regressions.
 
-3. **Production Release**
-   - After approval, the pull request is merged into `main`.
-   - GitHub Pages automatically updates the live site from the latest `main` branch.
+## 3. Remote Verification (Vercel)
+- **Push Branch:** `git push -u origin feature/your-fix-name`
+- **Deploy Preview:** Open the Vercel **Preview URL** for your branch. This allows you to verify the dashboard logic in a "live" environment before impacting the production site.
 
-4. **Post-Release**
-   - Monitor the production site for issues.
-   - Begin new features or fixes in new feature branches as needed.
+## 4. Pull Request & Merge
+- **Open PR:** Submit a Pull Request from your feature branch to `main`.
+- **Review:** Use the PR diff to ensure no accidental changes to formatting or logic.
+- **Merge:** Merge the PR once you are 100% satisfied with the Vercel preview. **Never merge direct to main.**
 
-## Environment URLs
-- **Production:** Published from `main` branch (e.g., `https://<username>.github.io/<repo>/`)
-- **Development/Preview:** Published from feature or dev branches (e.g., `https://<username>.github.io/<repo>/feature/GraphLine/` if configured)
-
-## Best Practices
-- Never commit directly to `main`.
-- Always use feature branches for new work.
-- Use pull requests for all merges to `main`.
-- Review and test all changes in a preview environment before production release.
-- Keep documentation up to date with process changes.
+## 5. Deployment Sync
+- **Live Update:** The production site automatically redeploys from `main`.
+- **Local Sync:**
+  ```powershell
+  git checkout main
+  git pull origin main
+  ```
 
 ---
-This process ensures safe, reliable deployments and clear separation between development and production environments.
+*Pro-Tip: When renaming metrics, always ensure the Google Sheet column header matches the new key in the code simultaneously.*
+
