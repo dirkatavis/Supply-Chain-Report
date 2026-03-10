@@ -82,6 +82,10 @@
 
         let referenceLinesConfig = {};
 
+        // Oil 0-20 fill calculation constants
+        const OIL_0_20_MAX_INCHES = 58;
+        const OIL_GALLONS_PER_INCH = 7.0;
+
         // Load ReferenceLines from YAML
         async function loadReferenceLinesConfig() {
             try {
@@ -432,6 +436,7 @@
                 
                 // Get range for this metric, or use default
                 const range = metricRanges[metric] || { min: 0, max: 100, unit: '%' };
+                const isOil020Metric = metric === 'oil_0_20';
                 
                 // Special color for ATL RO Levels to avoid red-on-red with reference line
                 let colorScheme;
@@ -443,16 +448,18 @@
                 
                 // Create the chart
                 const ctx = canvas.getContext('2d');
+                const levelData = data.map(row => row[metric]);
                 const datasets = [{
                     label: formatMetricName(metric),
-                    data: data.map(row => row[metric]),
+                    data: levelData,
                     borderColor: colorScheme.border,
                     backgroundColor: colorScheme.background,
                     tension: 0.3,
                     fill: true,
                     pointRadius: 5,
                     pointHoverRadius: 7,
-                    borderWidth: 3
+                    borderWidth: 3,
+                    yAxisID: 'y'
                 }];
                 
                     // Add horizontal reference line if defined in config
@@ -467,7 +474,35 @@
                             pointRadius: 0,
                             pointHoverRadius: 0,
                             fill: false,
-                            tension: 0
+                            tension: 0,
+                            yAxisID: 'y'
+                        });
+                    }
+
+                    if (isOil020Metric) {
+                        // Preserve one-to-one alignment with the level line by mapping the same indexed array.
+                        const gallonsNeededData = levelData.map((levelInches) => {
+                            const numericLevel = Number(levelInches);
+                            if (!Number.isFinite(numericLevel)) {
+                                return null;
+                            }
+
+                            const heightToFillInches = Math.max(0, OIL_0_20_MAX_INCHES - numericLevel);
+                            return heightToFillInches * OIL_GALLONS_PER_INCH;
+                        });
+
+                        datasets.push({
+                            label: 'Gallons Needed To Fill',
+                            data: gallonsNeededData,
+                            borderColor: '#1d4ed8',
+                            backgroundColor: 'transparent',
+                            tension: 0.3,
+                            fill: false,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            borderWidth: 3,
+                            borderDash: [6, 4],
+                            yAxisID: 'yGallons'
                         });
                     }
                 
@@ -482,7 +517,12 @@
                         maintainAspectRatio: false,
                         plugins: {
                             legend: {
-                                display: false
+                                display: isOil020Metric,
+                                position: 'bottom',
+                                labels: {
+                                    usePointStyle: true,
+                                    boxWidth: 12
+                                }
                             },
                             tooltip: {
                                 backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -496,7 +536,10 @@
                                 },
                                 callbacks: {
                                     label: function(context) {
-                                        return context.parsed.y + range.unit;
+                                        if (context.dataset.yAxisID === 'yGallons') {
+                                            return `${context.dataset.label}: ${context.parsed.y} gal`;
+                                        }
+                                        return `${context.dataset.label}: ${context.parsed.y}${range.unit}`;
                                     }
                                 }
                             }
@@ -516,6 +559,23 @@
                                 },
                                 grid: {
                                     color: 'rgba(0, 0, 0, 0.05)'
+                                }
+                            },
+                            yGallons: {
+                                display: isOil020Metric,
+                                position: 'right',
+                                beginAtZero: true,
+                                suggestedMax: OIL_0_20_MAX_INCHES * OIL_GALLONS_PER_INCH,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + ' gal';
+                                    },
+                                    font: {
+                                        size: 11
+                                    }
+                                },
+                                grid: {
+                                    drawOnChartArea: false
                                 }
                             },
                             x: {
