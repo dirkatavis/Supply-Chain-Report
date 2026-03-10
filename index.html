@@ -82,6 +82,24 @@
 
         let referenceLinesConfig = {};
 
+        // Oil 0-20 fill calculation constants
+        const OIL_0_20_MAX_INCHES = 58;
+        const OIL_GALLONS_PER_INCH = 7.0;
+
+        function calculateOilReorderGallons(levelInches) {
+            const numericLevel = Number(levelInches);
+            if (!Number.isFinite(numericLevel)) {
+                return null;
+            }
+
+            const inchesToFill = Math.max(0, OIL_0_20_MAX_INCHES - numericLevel);
+            return Math.round(inchesToFill * OIL_GALLONS_PER_INCH);
+        }
+
+        function isOil020Metric(metricName) {
+            return String(metricName).trim().toLowerCase() === 'oil_0_20';
+        }
+
         // Load ReferenceLines from YAML
         async function loadReferenceLinesConfig() {
             try {
@@ -336,11 +354,24 @@
                 const statusPara = document.createElement('p');
                 statusPara.className = 'text-sm text-gray-600';
                 statusPara.textContent = statusText;
-                
+
                 // Assemble card
                 card.appendChild(header);
                 card.appendChild(valueDiv);
                 card.appendChild(statusPara);
+
+                if (isOil020Metric(metric)) {
+                    const oilCardReorderGallons = calculateOilReorderGallons(value);
+                    const reorderPara = document.createElement('p');
+                    reorderPara.className = 'mt-2 text-sm font-semibold text-blue-700';
+                    if (oilCardReorderGallons === null) {
+                        reorderPara.textContent = 'Re-order Amount: N/A';
+                    } else {
+                        reorderPara.textContent = `Re-order Amount: ${oilCardReorderGallons} gal`;
+                    }
+                    card.appendChild(reorderPara);
+                }
+
                 container.appendChild(card);
             });
         }
@@ -443,9 +474,10 @@
                 
                 // Create the chart
                 const ctx = canvas.getContext('2d');
+                const levelData = data.map(row => row[metric]);
                 const datasets = [{
                     label: formatMetricName(metric),
-                    data: data.map(row => row[metric]),
+                    data: levelData,
                     borderColor: colorScheme.border,
                     backgroundColor: colorScheme.background,
                     tension: 0.3,
@@ -496,7 +528,7 @@
                                 },
                                 callbacks: {
                                     label: function(context) {
-                                        return context.parsed.y + range.unit;
+                                        return `${context.dataset.label}: ${context.parsed.y}${range.unit}`;
                                     }
                                 }
                             }

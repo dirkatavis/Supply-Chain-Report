@@ -89,7 +89,7 @@ Before merging to dev/main, run the minimal data validation script:
 git switch -c feature/<your_feature_name>
 
 # Run the test script
-node test-data.js
+python test_data.py
 ```
 
 This script checks for basic errors in status.csv and config.yaml. It is also run automatically on pull requests to dev/main via GitHub Actions.
