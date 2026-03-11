@@ -82,6 +82,31 @@
 
         let referenceLinesConfig = {};
 
+        // Oil fill calculation constants
+        const oilReorderConfig = {
+            oil_0_20: { maxInches: 58, gallonsPerInch: 7.0 },
+            oil_5_30: { maxInches: 58, gallonsPerInch: 14.0 }
+        };
+
+        function calculateOilReorderGallons(metric, levelInches) {
+            const config = oilReorderConfig[metric];
+            if (!config) {
+                return null;
+            }
+
+            const numericLevel = Number(levelInches);
+            if (!Number.isFinite(numericLevel)) {
+                return null;
+            }
+
+            const inchesToFill = Math.max(0, config.maxInches - numericLevel);
+            return Math.round(inchesToFill * config.gallonsPerInch);
+        }
+
+        function isOilReorderMetric(metricName) {
+            return Object.prototype.hasOwnProperty.call(oilReorderConfig, String(metricName).trim().toLowerCase());
+        }
+
         // Load ReferenceLines from YAML
         async function loadReferenceLinesConfig() {
             try {
@@ -341,6 +366,21 @@
                 card.appendChild(header);
                 card.appendChild(valueDiv);
                 card.appendChild(statusPara);
+
+                if (isOilReorderMetric(metric)) {
+                    const oilCardReorderGallons = calculateOilReorderGallons(metric, value);
+                    const reorderPara = document.createElement('p');
+                    reorderPara.className = 'mt-2 text-sm font-semibold text-blue-700';
+
+                    if (oilCardReorderGallons === null) {
+                        reorderPara.textContent = 'Re-order Amount: N/A';
+                    } else {
+                        reorderPara.textContent = `Re-order Amount: ${oilCardReorderGallons} gal`;
+                    }
+
+                    card.appendChild(reorderPara);
+                }
+
                 container.appendChild(card);
             });
         }
