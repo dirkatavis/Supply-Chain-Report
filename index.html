@@ -82,22 +82,28 @@
 
         let referenceLinesConfig = {};
 
-        // Oil 0-20 fill calculation constants
-        const OIL_0_20_MAX_INCHES = 58;
-        const OIL_GALLONS_PER_INCH = 7.0;
+        // Oil fill calculation constants
+        const oilReorderConfig = {
+            oil_0_20: { maxInches: 58, gallonsPerInch: 7.0 },
+            oil_5_30: { maxInches: 58, gallonsPerInch: 14.0 }
+        };
 
-        function calculateOilReorderGallons(levelInches) {
+        function calculateOilReorderGallons(metric, levelInches) {
+            const config = oilReorderConfig[metric];
+            if (!config) {
+                return null;
+            }
             const numericLevel = Number(levelInches);
             if (!Number.isFinite(numericLevel)) {
                 return null;
             }
 
-            const inchesToFill = Math.max(0, OIL_0_20_MAX_INCHES - numericLevel);
-            return Math.round(inchesToFill * OIL_GALLONS_PER_INCH);
+            const inchesToFill = Math.max(0, config.maxInches - numericLevel);
+            return Math.round(inchesToFill * config.gallonsPerInch);
         }
 
-        function isOil020Metric(metricName) {
-            return String(metricName).trim().toLowerCase() === 'oil_0_20';
+        function isOilReorderMetric(metricName) {
+            return Object.prototype.hasOwnProperty.call(oilReorderConfig, String(metricName).trim().toLowerCase());
         }
 
         // Load ReferenceLines from YAML
@@ -360,8 +366,8 @@
                 card.appendChild(valueDiv);
                 card.appendChild(statusPara);
 
-                if (isOil020Metric(metric)) {
-                    const oilCardReorderGallons = calculateOilReorderGallons(value);
+                if (isOilReorderMetric(metric)) {
+                    const oilCardReorderGallons = calculateOilReorderGallons(metric, value);
                     const reorderPara = document.createElement('p');
                     reorderPara.className = 'mt-2 text-sm font-semibold text-blue-700';
                     if (oilCardReorderGallons === null) {
