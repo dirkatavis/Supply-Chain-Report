@@ -93,7 +93,6 @@
             if (!config) {
                 return null;
             }
-
             const numericLevel = Number(levelInches);
             if (!Number.isFinite(numericLevel)) {
                 return null;
@@ -361,7 +360,7 @@
                 const statusPara = document.createElement('p');
                 statusPara.className = 'text-sm text-gray-600';
                 statusPara.textContent = statusText;
-                
+
                 // Assemble card
                 card.appendChild(header);
                 card.appendChild(valueDiv);
@@ -371,13 +370,11 @@
                     const oilCardReorderGallons = calculateOilReorderGallons(metric, value);
                     const reorderPara = document.createElement('p');
                     reorderPara.className = 'mt-2 text-sm font-semibold text-blue-700';
-
                     if (oilCardReorderGallons === null) {
                         reorderPara.textContent = 'Re-order Amount: N/A';
                     } else {
                         reorderPara.textContent = `Re-order Amount: ${oilCardReorderGallons} gal`;
                     }
-
                     card.appendChild(reorderPara);
                 }
 
@@ -483,9 +480,10 @@
                 
                 // Create the chart
                 const ctx = canvas.getContext('2d');
+                const levelData = data.map(row => row[metric]);
                 const datasets = [{
                     label: formatMetricName(metric),
-                    data: data.map(row => row[metric]),
+                    data: levelData,
                     borderColor: colorScheme.border,
                     backgroundColor: colorScheme.background,
                     tension: 0.3,
@@ -536,7 +534,7 @@
                                 },
                                 callbacks: {
                                     label: function(context) {
-                                        return context.parsed.y + range.unit;
+                                        return `${context.dataset.label}: ${context.parsed.y}${range.unit}`;
                                     }
                                 }
                             }
