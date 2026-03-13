@@ -469,6 +469,7 @@
                 
                 // Get range for this metric, or use default
                 const range = metricRanges[metric] || { min: 0, max: 100, unit: '%' };
+                const oilMetric = isOilReorderMetric(metric);
                 
                 // Special color for ATL RO Levels to avoid red-on-red with reference line
                 let colorScheme;
@@ -532,8 +533,26 @@
                                 bodyFont: {
                                     size: 13
                                 },
+                                filter: function(tooltipItem) {
+                                    if (!oilMetric) {
+                                        return true;
+                                    }
+                                    return tooltipItem.datasetIndex === 0;
+                                },
                                 callbacks: {
                                     label: function(context) {
+                                        if (oilMetric) {
+                                            const pointLevel = Number(levelData[context.dataIndex]);
+                                            if (!Number.isFinite(pointLevel)) {
+                                                return `${formatMetricName(metric)}: N/A`;
+                                            }
+
+                                            const refillGallons = calculateOilReorderGallons(metric, pointLevel);
+                                            return [
+                                                `${formatMetricName(metric)}: ${pointLevel}${range.unit}`,
+                                                `Refill: ${refillGallons ?? 'N/A'} gal`
+                                            ];
+                                        }
                                         return `${context.dataset.label}: ${context.parsed.y}${range.unit}`;
                                     }
                                 }
