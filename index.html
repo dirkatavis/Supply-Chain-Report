@@ -91,6 +91,15 @@
         const OIL_DELIVERY_LAG_DAYS = 3;
         const OIL_UNUSABLE_BOTTOM_INCHES = 3;
         const OIL_WASTE_MAX_FILL_INCHES = 58;
+        const dashboardMetricOrder = [
+            'glass_pending_repair',
+            'pm_records_filed',
+            'missing_keys',
+            'atl_ro_levels',
+            'oil_0_20',
+            'oil_5_30',
+            'oil_waste'
+        ];
 
         function calculateOilReorderGallons(metric, levelInches) {
             const config = oilReorderConfig[metric];
@@ -461,28 +470,8 @@
         function displayCurrentStatus(latestData, allDataRows = []) {
             const container = document.getElementById('status-cards');
             container.innerHTML = '';
-            
-            // Define explicit order for metrics
-            const metricOrder = [
-                'glass_pending_repair',
-                'pm_records_filed',
-                'missing_keys',
-                'atl_ro_levels',
-                'oil_0_20',
-                'oil_5_30',
-                'oil_waste'
-            ];
-            
-            // Get all metrics except date, and sort them according to metricOrder
-            const metrics = Object.keys(latestData).filter(key => key !== 'date');
-            metrics.sort((a, b) => {
-                const indexA = metricOrder.indexOf(a);
-                const indexB = metricOrder.indexOf(b);
-                if (indexA === -1 && indexB === -1) return 0;
-                if (indexA === -1) return 1;
-                if (indexB === -1) return -1;
-                return indexA - indexB;
-            });
+
+            const metrics = dashboardMetricOrder.filter(metric => Object.prototype.hasOwnProperty.call(latestData, metric));
             
             metrics.forEach(metric => {
                 const value = latestData[metric];
@@ -591,31 +580,10 @@
             
             const container = document.getElementById('charts-container');
             container.innerHTML = '';
-            
-            // Define explicit order for metrics
-            const metricOrder = [
-                'glass_pending_repair',
-                'pm_records_filed',
-                'missing_keys',
-                'atl_ro_levels',
-                'oil_0_20',
-                'oil_5_30',
-                'oil_waste'
-            ];
-            
+
             // Extract dates and metrics
             const dates = data.map(row => row.date);
-            const metrics = Object.keys(data[0]).filter(key => key !== 'date');
-            
-            // Sort metrics according to metricOrder
-            metrics.sort((a, b) => {
-                const indexA = metricOrder.indexOf(a);
-                const indexB = metricOrder.indexOf(b);
-                if (indexA === -1 && indexB === -1) return 0;
-                if (indexA === -1) return 1;
-                if (indexB === -1) return -1;
-                return indexA - indexB;
-            });
+            const metrics = dashboardMetricOrder.filter(metric => Object.prototype.hasOwnProperty.call(data[0], metric));
             
             const colors = [
                 { border: '#3b82f6', background: '#3b82f633' }, // blue
