@@ -88,6 +88,18 @@
             oil_5_30: { maxInches: 59, gallonsPerInch: 17.58 }
         };
 
+        const OIL_DELIVERY_LAG_DAYS = 3;
+        const OIL_UNUSABLE_BOTTOM_INCHES = 3;
+        const dashboardMetricOrder = [
+            'glass_pending_repair',
+            'pm_records_filed',
+            'missing_keys',
+            'atl_ro_levels',
+            'oil_0_20',
+            'oil_5_30',
+            'oil_waste'
+        ];
+
         function calculateOilReorderGallons(metric, levelInches) {
             const config = oilReorderConfig[metric];
             if (!config) {
@@ -106,8 +118,190 @@
             return Object.prototype.hasOwnProperty.call(oilReorderConfig, String(metricName).trim().toLowerCase());
         }
 
-        // Load ReferenceLines from YAML
-        async function loadReferenceLinesConfig() {
+        function isOilMinActionDateMetric(metricName) {
+            const normalizedMetricName = String(metricName).trim().toLowerCase();
+            return isOilReorderMetric(normalizedMetricName) || normalizedMetricName === 'oil_waste';
+        }
+
+        function parseDateValue(dateValue) {
+            const parsedDate = new Date(dateValue);
+            if (Number.isNaN(parsedDate.getTime())) {
+                return null;
+            }
+            return parsedDate;
+        }
+
+        function calculateAverageInchesPerDay(metric, allDataRows, trendDirection) {
+            if (!Array.isArray(allDataRows) || allDataRows.length < 2) {
+                return null;
+            }
+
+            const rateValues = [];
+            for (let index = 1; index < allDataRows.length; index += 1) {
+                const previousRow = allDataRows[index - 1];
+                const currentRow = allDataRows[index];
+
+                const previousLevel = Number(previousRow[metric]);
+                const currentLevel = Number(currentRow[metric]);
+                if (!Number.isFinite(previousLevel) || !Number.isFinite(currentLevel)) {
+                    continue;
+                }
+
+                const previousDate = parseDateValue(previousRow.date);
+                const currentDate = parseDateValue(currentRow.date);
+                if (!previousDate || !currentDate) {
+                    continue;
+                }
+
+                const dayDifference = (currentDate - previousDate) / (1000 * 60 * 60 * 24);
+                if (!Number.isFinite(dayDifference) || dayDifference <= 0) {
+                    continue;
+                }
+
+                const levelDelta = currentLevel - previousLevel;
+                let inchesPerDay = null;
+
+                if (trendDirection === 'decreasing' && levelDelta < 0) {
+                    inchesPerDay = Math.abs(levelDelta) / dayDifference;
+                }
+
+                if (trendDirection === 'increasing' && levelDelta > 0) {
+                    inchesPerDay = levelDelta / dayDifference;
+                }
+
+                if (!Number.isFinite(inchesPerDay) || inchesPerDay <= 0) {
+                    continue;
+                }
+
+                rateValues.push(inchesPerDay);
+            }
+
+            if (rateValues.length === 0) {
+                return null;
+            }
+
+            const recentRateValues = rateValues.slice(-7);
+            const totalRate = recentRateValues.reduce((sum, rateValue) => sum + rateValue, 0);
+            return totalRate / recentRateValues.length;
+        }
+
+        function calculateSupplyConsumptionInchesPerDaySinceLastFill(metric, allDataRows) {
+            if (!Array.isArray(allDataRows) || allDataRows.length < 2) {
+                return null;
+            }
+
+            let fillStartIndex = 0;
+            for (let index = 1; index < allDataRows.length; index += 1) {
+                const previousLevel = Number(allDataRows[index - 1][metric]);
+                const currentLevel = Number(allDataRows[index][metric]);
+                if (!Number.isFinite(previousLevel) || !Number.isFinite(currentLevel)) {
+                    continue;
+                }
+
+                const levelDelta = currentLevel - previousLevel;
+                if (levelDelta > 0) {
+                    fillStartIndex = index;
+                }
+            }
+
+            const fillStartRow = allDataRows[fillStartIndex];
+            const latestRow = allDataRows[allDataRows.length - 1];
+
+            const fillStartLevel = Number(fillStartRow[metric]);
+            const latestLevel = Number(latestRow[metric]);
+            if (!Number.isFinite(fillStartLevel) || !Number.isFinite(latestLevel)) {
+                return null;
+            }
+
+            const fillStartDate = parseDateValue(fillStartRow.date);
+            const latestDate = parseDateValue(latestRow.date);
+            if (!fillStartDate || !latestDate) {
+                return null;
+            }
+
+            const elapsedDays = (latestDate - fillStartDate) / (1000 * 60 * 60 * 24);
+            if (!Number.isFinite(elapsedDays) || elapsedDays <= 0) {
+                return null;
+            }
+
+            const consumedInchesSinceFill = fillStartLevel - latestLevel;
+            if (!Number.isFinite(consumedInchesSinceFill) || consumedInchesSinceFill <= 0) {
+                return null;
+            }
+
+            return consumedInchesSinceFill / elapsedDays;
+        }
+
+        function getOilActionTriggerLine(metric) {
+            const refLine = referenceLinesConfig[metric];
+            if (!refLine || typeof refLine.reference_line !== 'number') {
+                return null;
+            }
+            return refLine.reference_line;
+        }
+
+        function calculateOilMinActionDate(metric, levelInches, allDataRows) {
+            if (!isOilMinActionDateMetric(metric)) {
+                return null;
+            }
+
+            const numericLevel = Number(levelInches);
+            if (!Number.isFinite(numericLevel)) {
+                return null;
+            }
+
+            let daysUntilMinAction = null;
+            if (isOilReorderMetric(metric)) {
+                const averageConsumptionInchesPerDay = calculateSupplyConsumptionInchesPerDaySinceLastFill(metric, allDataRows);
+                if (!Number.isFinite(averageConsumptionInchesPerDay) || averageConsumptionInchesPerDay <= 0) {
+                    return null;
+                }
+
+                const actionTriggerLine = getOilActionTriggerLine(metric);
+                if (!Number.isFinite(actionTriggerLine)) {
+                    const usableInches = Math.max(0, numericLevel - OIL_UNUSABLE_BOTTOM_INCHES);
+                    const daysToBingo = usableInches / averageConsumptionInchesPerDay;
+                    daysUntilMinAction = Math.max(0, daysToBingo - OIL_DELIVERY_LAG_DAYS);
+                } else {
+                    const remainingInchesToActionTrigger = Math.max(0, numericLevel - actionTriggerLine);
+                    daysUntilMinAction = remainingInchesToActionTrigger / averageConsumptionInchesPerDay;
+                }
+            } else if (String(metric).trim().toLowerCase() === 'oil_waste') {
+                const averageFillInchesPerDay = calculateAverageInchesPerDay(metric, allDataRows, 'increasing');
+                if (!Number.isFinite(averageFillInchesPerDay) || averageFillInchesPerDay <= 0) {
+                    return null;
+                }
+
+                const actionTriggerLine = getOilActionTriggerLine(metric);
+                if (!Number.isFinite(actionTriggerLine)) {
+                    return null;
+                }
+
+                const remainingInchesToActionTrigger = Math.max(0, actionTriggerLine - numericLevel);
+                daysUntilMinAction = remainingInchesToActionTrigger / averageFillInchesPerDay;
+            }
+
+            if (!Number.isFinite(daysUntilMinAction)) {
+                return null;
+            }
+
+            const wholeDaysUntilMinAction = Math.max(0, Math.floor(daysUntilMinAction));
+            const minActionDate = new Date();
+            minActionDate.setHours(0, 0, 0, 0);
+            minActionDate.setDate(minActionDate.getDate() + wholeDaysUntilMinAction);
+            return minActionDate;
+        }
+
+        function formatOilDate(dateValue) {
+            return dateValue.toLocaleDateString('en-US', {
+                month: '2-digit',
+                day: '2-digit',
+                year: '2-digit'
+            });
+        }
+
+        // Load dashboard config from YAML
+        async function loadDashboardConfig() {
             try {
                 const response = await fetch('config.yaml');
                 if (!response.ok) {
@@ -115,11 +309,9 @@
                 }
                 const yamlText = await response.text();
                 const data = jsyaml.load(yamlText);
-                if (data && data.ReferenceLines) {
-                    referenceLinesConfig = data.ReferenceLines;
-                }
+                referenceLinesConfig = data && data.ReferenceLines ? data.ReferenceLines : {};
             } catch (error) {
-                console.error('Error loading ReferenceLines config:', error);
+                console.error('Error loading dashboard config:', error);
                 referenceLinesConfig = {};
             }
         }
@@ -202,6 +394,24 @@
             // Convert metric name to valid HTML ID (alphanumeric, hyphens, underscores only)
             return metric.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
         }
+
+        function sanitizeParsedStatusRows(parsedRows) {
+            if (!Array.isArray(parsedRows)) {
+                return [];
+            }
+
+            return parsedRows.map(row => {
+                const sanitizedRow = {};
+                Object.entries(row || {}).forEach(([key, value]) => {
+                    const trimmedKey = String(key).trim();
+                    if (!trimmedKey || trimmedKey === '__parsed_extra') {
+                        return;
+                    }
+                    sanitizedRow[trimmedKey] = value;
+                });
+                return sanitizedRow;
+            });
+        }
         
         // Load and display responsibilities from YAML
         async function loadResponsibilities() {
@@ -265,14 +475,14 @@
                     header: true,
                     dynamicTyping: true,
                     complete: function(results) {
-                        const data = results.data.filter(row => row.date); // Filter out empty rows
+                        const data = sanitizeParsedStatusRows(results.data).filter(row => row.date);
                         
                         if (data.length === 0) {
                             throw new Error('No valid data rows found in CSV');
                         }
                         
                         // Display current status (latest row)
-                        displayCurrentStatus(data[data.length - 1]);
+                        displayCurrentStatus(data[data.length - 1], data);
                         
                         // Display progress chart (all rows)
                         displayProgressChart(data);
@@ -292,31 +502,11 @@
         }
         
         // Display current status cards
-        function displayCurrentStatus(latestData) {
+        function displayCurrentStatus(latestData, allDataRows = []) {
             const container = document.getElementById('status-cards');
             container.innerHTML = '';
-            
-            // Define explicit order for metrics
-            const metricOrder = [
-                'glass_pending_repair',
-                'pm_records_filed',
-                'missing_keys',
-                'atl_ro_levels',
-                'oil_0_20',
-                'oil_5_30',
-                'oil_waste'
-            ];
-            
-            // Get all metrics except date, and sort them according to metricOrder
-            const metrics = Object.keys(latestData).filter(key => key !== 'date');
-            metrics.sort((a, b) => {
-                const indexA = metricOrder.indexOf(a);
-                const indexB = metricOrder.indexOf(b);
-                if (indexA === -1 && indexB === -1) return 0;
-                if (indexA === -1) return 1;
-                if (indexB === -1) return -1;
-                return indexA - indexB;
-            });
+
+            const metrics = dashboardMetricOrder.filter(metric => Object.prototype.hasOwnProperty.call(latestData, metric));
             
             metrics.forEach(metric => {
                 const value = latestData[metric];
@@ -371,11 +561,24 @@
                     const reorderPara = document.createElement('p');
                     reorderPara.className = 'mt-2 text-sm font-semibold text-blue-700';
                     if (oilCardReorderGallons === null) {
-                        reorderPara.textContent = 'Re-order Amount: N/A';
+                        reorderPara.textContent = 'Order Amount: N/A';
                     } else {
-                        reorderPara.textContent = `Re-order Amount: ${oilCardReorderGallons} gal`;
+                        reorderPara.textContent = `Order Amount: ${oilCardReorderGallons} gal`;
                     }
                     card.appendChild(reorderPara);
+                }
+
+                if (isOilMinActionDateMetric(metric)) {
+                    const minActionDate = calculateOilMinActionDate(metric, value, allDataRows);
+                    const minActionDatePara = document.createElement('p');
+                    minActionDatePara.className = 'mt-1 text-sm font-medium text-blue-700';
+                    const minDateLabel = 'Order-By Date';
+                    if (!minActionDate) {
+                        minActionDatePara.textContent = `${minDateLabel}: N/A`;
+                    } else {
+                        minActionDatePara.textContent = `${minDateLabel}: ${formatOilDate(minActionDate)}`;
+                    }
+                    card.appendChild(minActionDatePara);
                 }
 
                 container.appendChild(card);
@@ -410,31 +613,10 @@
             
             const container = document.getElementById('charts-container');
             container.innerHTML = '';
-            
-            // Define explicit order for metrics
-            const metricOrder = [
-                'glass_pending_repair',
-                'pm_records_filed',
-                'missing_keys',
-                'atl_ro_levels',
-                'oil_0_20',
-                'oil_5_30',
-                'oil_waste'
-            ];
-            
+
             // Extract dates and metrics
             const dates = data.map(row => row.date);
-            const metrics = Object.keys(data[0]).filter(key => key !== 'date');
-            
-            // Sort metrics according to metricOrder
-            metrics.sort((a, b) => {
-                const indexA = metricOrder.indexOf(a);
-                const indexB = metricOrder.indexOf(b);
-                if (indexA === -1 && indexB === -1) return 0;
-                if (indexA === -1) return 1;
-                if (indexB === -1) return -1;
-                return indexA - indexB;
-            });
+            const metrics = dashboardMetricOrder.filter(metric => Object.prototype.hasOwnProperty.call(data[0], metric));
             
             const colors = [
                 { border: '#3b82f6', background: '#3b82f633' }, // blue
@@ -550,7 +732,7 @@
                                             const refillGallons = calculateOilReorderGallons(metric, pointLevel);
                                             return [
                                                 `${formatMetricName(metric)}: ${pointLevel}${range.unit}`,
-                                                `Refill: ${refillGallons ?? 'N/A'} gal`
+                                                `Order: ${refillGallons ?? 'N/A'} gal`
                                             ];
                                         }
                                         return `${context.dataset.label}: ${context.parsed.y}${range.unit}`;
@@ -601,7 +783,7 @@
         
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', async function() {
-            await loadReferenceLinesConfig();
+            await loadDashboardConfig();
             loadResponsibilities();
             loadStatusData();
         });
