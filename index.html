@@ -90,7 +90,6 @@
 
         const OIL_DELIVERY_LAG_DAYS = 3;
         const OIL_UNUSABLE_BOTTOM_INCHES = 3;
-        const OIL_WASTE_MAX_FILL_INCHES = 58;
         const dashboardMetricOrder = [
             'glass_pending_repair',
             'pm_records_filed',
@@ -233,6 +232,14 @@
             return consumedInchesSinceFill / elapsedDays;
         }
 
+        function getOilActionTriggerLine(metric) {
+            const refLine = referenceLinesConfig[metric];
+            if (!refLine || typeof refLine.reference_line !== 'number') {
+                return null;
+            }
+            return refLine.reference_line;
+        }
+
         function calculateOilMinActionDate(metric, levelInches, allDataRows) {
             if (!isOilMinActionDateMetric(metric)) {
                 return null;
@@ -243,33 +250,45 @@
                 return null;
             }
 
-            let daysToBingo = null;
+            let daysUntilMinAction = null;
             if (isOilReorderMetric(metric)) {
                 const averageConsumptionInchesPerDay = calculateSupplyConsumptionInchesPerDaySinceLastFill(metric, allDataRows);
                 if (!Number.isFinite(averageConsumptionInchesPerDay) || averageConsumptionInchesPerDay <= 0) {
                     return null;
                 }
 
-                const usableInches = Math.max(0, numericLevel - OIL_UNUSABLE_BOTTOM_INCHES);
-                daysToBingo = usableInches / averageConsumptionInchesPerDay;
+                const actionTriggerLine = getOilActionTriggerLine(metric);
+                if (!Number.isFinite(actionTriggerLine)) {
+                    const usableInches = Math.max(0, numericLevel - OIL_UNUSABLE_BOTTOM_INCHES);
+                    const daysToBingo = usableInches / averageConsumptionInchesPerDay;
+                    daysUntilMinAction = Math.max(0, daysToBingo - OIL_DELIVERY_LAG_DAYS);
+                } else {
+                    const remainingInchesToActionTrigger = Math.max(0, numericLevel - actionTriggerLine);
+                    daysUntilMinAction = remainingInchesToActionTrigger / averageConsumptionInchesPerDay;
+                }
             } else if (String(metric).trim().toLowerCase() === 'oil_waste') {
                 const averageFillInchesPerDay = calculateAverageInchesPerDay(metric, allDataRows, 'increasing');
                 if (!Number.isFinite(averageFillInchesPerDay) || averageFillInchesPerDay <= 0) {
                     return null;
                 }
 
-                const remainingInchesToMaxFill = Math.max(0, OIL_WASTE_MAX_FILL_INCHES - numericLevel);
-                daysToBingo = remainingInchesToMaxFill / averageFillInchesPerDay;
+                const actionTriggerLine = getOilActionTriggerLine(metric);
+                if (!Number.isFinite(actionTriggerLine)) {
+                    return null;
+                }
+
+                const remainingInchesToActionTrigger = Math.max(0, actionTriggerLine - numericLevel);
+                daysUntilMinAction = remainingInchesToActionTrigger / averageFillInchesPerDay;
             }
 
-            if (!Number.isFinite(daysToBingo)) {
+            if (!Number.isFinite(daysUntilMinAction)) {
                 return null;
             }
 
-            const daysUntilMinReorder = Math.max(0, Math.floor(daysToBingo - OIL_DELIVERY_LAG_DAYS));
+            const wholeDaysUntilMinAction = Math.max(0, Math.floor(daysUntilMinAction));
             const minActionDate = new Date();
             minActionDate.setHours(0, 0, 0, 0);
-            minActionDate.setDate(minActionDate.getDate() + daysUntilMinReorder);
+            minActionDate.setDate(minActionDate.getDate() + wholeDaysUntilMinAction);
             return minActionDate;
         }
 
@@ -281,8 +300,8 @@
             });
         }
 
-        // Load ReferenceLines from YAML
-        async function loadReferenceLinesConfig() {
+        // Load dashboard config from YAML
+        async function loadDashboardConfig() {
             try {
                 const response = await fetch('config.yaml');
                 if (!response.ok) {
@@ -290,11 +309,9 @@
                 }
                 const yamlText = await response.text();
                 const data = jsyaml.load(yamlText);
-                if (data && data.ReferenceLines) {
-                    referenceLinesConfig = data.ReferenceLines;
-                }
+                referenceLinesConfig = data && data.ReferenceLines ? data.ReferenceLines : {};
             } catch (error) {
-                console.error('Error loading ReferenceLines config:', error);
+                console.error('Error loading dashboard config:', error);
                 referenceLinesConfig = {};
             }
         }
@@ -377,6 +394,24 @@
             // Convert metric name to valid HTML ID (alphanumeric, hyphens, underscores only)
             return metric.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
         }
+
+        function sanitizeParsedStatusRows(parsedRows) {
+            if (!Array.isArray(parsedRows)) {
+                return [];
+            }
+
+            return parsedRows.map(row => {
+                const sanitizedRow = {};
+                Object.entries(row || {}).forEach(([key, value]) => {
+                    const trimmedKey = String(key).trim();
+                    if (!trimmedKey || trimmedKey === '__parsed_extra') {
+                        return;
+                    }
+                    sanitizedRow[trimmedKey] = value;
+                });
+                return sanitizedRow;
+            });
+        }
         
         // Load and display responsibilities from YAML
         async function loadResponsibilities() {
@@ -440,7 +475,7 @@
                     header: true,
                     dynamicTyping: true,
                     complete: function(results) {
-                        const data = results.data.filter(row => row.date); // Filter out empty rows
+                        const data = sanitizeParsedStatusRows(results.data).filter(row => row.date);
                         
                         if (data.length === 0) {
                             throw new Error('No valid data rows found in CSV');
@@ -526,9 +561,9 @@
                     const reorderPara = document.createElement('p');
                     reorderPara.className = 'mt-2 text-sm font-semibold text-blue-700';
                     if (oilCardReorderGallons === null) {
-                        reorderPara.textContent = 'Re-order Amount: N/A';
+                        reorderPara.textContent = 'Order Amount: N/A';
                     } else {
-                        reorderPara.textContent = `Re-order Amount: ${oilCardReorderGallons} gal`;
+                        reorderPara.textContent = `Order Amount: ${oilCardReorderGallons} gal`;
                     }
                     card.appendChild(reorderPara);
                 }
@@ -537,9 +572,7 @@
                     const minActionDate = calculateOilMinActionDate(metric, value, allDataRows);
                     const minActionDatePara = document.createElement('p');
                     minActionDatePara.className = 'mt-1 text-sm font-medium text-blue-700';
-                    const minDateLabel = String(metric).trim().toLowerCase() === 'oil_waste'
-                        ? 'Min. Pickup Date'
-                        : 'Min. Re-order Date';
+                    const minDateLabel = 'Order-By Date';
                     if (!minActionDate) {
                         minActionDatePara.textContent = `${minDateLabel}: N/A`;
                     } else {
@@ -699,7 +732,7 @@
                                             const refillGallons = calculateOilReorderGallons(metric, pointLevel);
                                             return [
                                                 `${formatMetricName(metric)}: ${pointLevel}${range.unit}`,
-                                                `Refill: ${refillGallons ?? 'N/A'} gal`
+                                                `Order: ${refillGallons ?? 'N/A'} gal`
                                             ];
                                         }
                                         return `${context.dataset.label}: ${context.parsed.y}${range.unit}`;
@@ -750,7 +783,7 @@
         
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', async function() {
-            await loadReferenceLinesConfig();
+            await loadDashboardConfig();
             loadResponsibilities();
             loadStatusData();
         });

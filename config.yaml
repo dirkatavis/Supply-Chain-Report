@@ -58,13 +58,13 @@ ReferenceLines:
     reference_line: 5
     direction: below
   oil_0_20:
-    reference_line: 20
+    reference_line: 10
     direction: above
   oil_5_30:
-    reference_line: 20
+    reference_line: 10
     direction: above
   oil_waste:
-    reference_line: 40
+    reference_line: 50
     direction: below
   atl_ro_levels:
     reference_line: 250
