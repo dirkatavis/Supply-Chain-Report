@@ -84,8 +84,8 @@
 
         // Oil fill calculation constants
         const oilReorderConfig = {
-            oil_0_20: { maxInches: 59, gallonsPerInch: 7.92 },
-            oil_5_30: { maxInches: 59, gallonsPerInch: 17.58 }
+            oil_0_20: { maxInches: 59, gallonsPerInch: 500 / 59 },
+            oil_5_30: { maxInches: 59, gallonsPerInch: 1000 / 59 }
         };
 
         const OIL_DELIVERY_LAG_DAYS = 3;
