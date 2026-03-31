@@ -88,8 +88,6 @@
             oil_5_30: { maxInches: 59, gallonsPerInch: 1000 / 59 }
         };
 
-        const OIL_DELIVERY_LAG_DAYS = 3;
-        const OIL_UNUSABLE_BOTTOM_INCHES = 3;
         const dashboardMetricOrder = [
             'glass_pending_repair',
             'pm_records_filed',
@@ -259,9 +257,7 @@
 
                 const actionTriggerLine = getOilActionTriggerLine(metric);
                 if (!Number.isFinite(actionTriggerLine)) {
-                    const usableInches = Math.max(0, numericLevel - OIL_UNUSABLE_BOTTOM_INCHES);
-                    const daysToBingo = usableInches / averageConsumptionInchesPerDay;
-                    daysUntilMinAction = Math.max(0, daysToBingo - OIL_DELIVERY_LAG_DAYS);
+                    return null;
                 } else {
                     const remainingInchesToActionTrigger = Math.max(0, numericLevel - actionTriggerLine);
                     daysUntilMinAction = remainingInchesToActionTrigger / averageConsumptionInchesPerDay;
@@ -572,7 +568,7 @@
                     const minActionDate = calculateOilMinActionDate(metric, value, allDataRows);
                     const minActionDatePara = document.createElement('p');
                     minActionDatePara.className = 'mt-1 text-sm font-medium text-blue-700';
-                    const minDateLabel = 'Order-By Date';
+                    const minDateLabel = 'Bingo Date';
                     if (!minActionDate) {
                         minActionDatePara.textContent = `${minDateLabel}: N/A`;
                     } else {

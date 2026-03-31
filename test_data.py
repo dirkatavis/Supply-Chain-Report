@@ -190,6 +190,44 @@ def test_calculate_trend():
     assert calculate_trend(sample, 'kpi') == 10, 'Trend should be last minus first'
     print('test_calculate_trend: OK')
 
+def calculate_bingo_days(current_level, reference_line, avg_consumption_inches_per_day):
+    """Return days until the reference line (Bingo Date) is reached."""
+    if not isinstance(current_level, (int, float)):
+        return None
+    if not isinstance(reference_line, (int, float)):
+        return None
+    if not isinstance(avg_consumption_inches_per_day, (int, float)):
+        return None
+    if avg_consumption_inches_per_day <= 0:
+        return None
+
+    remaining_inches = max(0, current_level - reference_line)
+    return remaining_inches / avg_consumption_inches_per_day
+
+def test_bingo_date_is_reference_line_based():
+    """Bingo Date should be projected at the reference line threshold."""
+    days = calculate_bingo_days(current_level=38, reference_line=20, avg_consumption_inches_per_day=3)
+    assert abs(days - 6.0) < 1e-9, 'Bingo days should be (38-20)/3 = 6 days'
+    print('test_bingo_date_is_reference_line_based: OK')
+
+def test_bingo_date_no_double_delivery_lag_subtraction():
+    """Do not subtract delivery lag again because reference line already encodes it."""
+    days = calculate_bingo_days(current_level=35, reference_line=20, avg_consumption_inches_per_day=3)
+    assert abs(days - 5.0) < 1e-9, 'Bingo days should remain 5, not 2 after extra lag subtraction'
+    print('test_bingo_date_no_double_delivery_lag_subtraction: OK')
+
+def test_oil_reference_lines_present():
+    """Oil metrics should define reference lines for Bingo Date projections."""
+    with open('config.yaml', encoding='utf-8') as f:
+        data = yaml.safe_load(f)
+    ref = data.get('ReferenceLines', {})
+    for oil_metric in ('oil_0_20', 'oil_5_30'):
+        assert oil_metric in ref, f'{oil_metric} must be present in ReferenceLines'
+        assert isinstance(ref[oil_metric].get('reference_line'), (int, float)), (
+            f'{oil_metric}.reference_line must be numeric'
+        )
+    print('test_oil_reference_lines_present: OK')
+
 def main():
     test_reference_lines_config()
     test_status_logic()
@@ -208,6 +246,9 @@ def main():
     # Run additional unit tests (breadth-first, all areas)
     test_get_recent_kpi_updates()
     test_calculate_trend()
+    test_bingo_date_is_reference_line_based()
+    test_bingo_date_no_double_delivery_lag_subtraction()
+    test_oil_reference_lines_present()
     test_get_status_color()
     # test_get_metric_series()  # Commented out, not defined in this file
     test_extract_responsibilities()
