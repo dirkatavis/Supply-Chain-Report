@@ -51,8 +51,8 @@ npx serve
 
 - **Current Status Cards**: Real-time KPI metrics with color-coded status indicators
 - **Progress Over Time**: Interactive chart showing trends across multiple KPIs
-- **Recent Activity**: Searchable table of the latest 10 KPI updates
 - **General Responsibilities**: Quick reference sidebar with key responsibilities
+- **Oil Planning Metrics**: Order amount and Bingo Date projections for tracked oil tanks
 
 ## 🔧 Updating Data
 
@@ -67,17 +67,48 @@ date,kpi_name,kpi_value,status_color,notes
 
 ### Update Configuration (`config.yaml`)
 
-Edit the `config.yaml` file to change personal info or responsibilities:
+Edit the `config.yaml` file to change responsibilities or reference lines:
 
 ```yaml
-Name: Your Name
-Role: Your Role
-General Responsibilities:
-  - Responsibility 1
-  - Responsibility 2
+general_responsibilities:
+  - title: Supply Management
+    description: Monitor and report on airport oil levels
+    owner: Dirk Steele
+
+ReferenceLines:
+  oil_0_20:
+    reference_line: 10
+    direction: above
 ```
 
 After updating, commit and push the changes to GitHub. The dashboard will automatically refresh with the new data when accessed.
+
+## 🛢️ Oil Planning Logic
+
+The dashboard includes oil planning logic for `oil_0_20` and `oil_5_30`.
+
+### Standard Definitions
+
+- **Order Amount**: Gallons required to refill the tank from the current measured level to full.
+- **Bingo Date**: Projected date the tank reaches its reference line.
+- **Order-By Date**: Same as Bingo Date. This is the last possible date to place an order and still receive delivery before the tank runs empty.
+- **Runout Date**: Projected date the tank reaches zero usable inventory.
+- **Refill Event**: A reading where the tank level jumps upward and starts a new refill cycle.
+
+### Current Operating Rules
+
+- Average consumption is calculated **since the last refill**.
+- Oil tanks are assumed to follow a drawdown pattern: level drops gradually over time and then jumps upward when refilled.
+- Bingo Date is based on the tank reaching the configured reference line in [config.yaml](c:/Temp/Code/WebPage_Report/Supply-Chain-Report/config.yaml).
+- The oil reference line already represents the delivery buffer. It should be treated as the last safe order point and should not have delivery lag subtracted a second time.
+- Order Amount remains a simple refill-to-full calculation based on current remaining empty capacity.
+
+### Capacity Assumptions
+
+- `oil_0_20`: **500 gallons**
+- `oil_5_30`: **1000 gallons**
+
+The gallons-per-inch conversion used by the dashboard is calibrated from those official capacities and the tank's usable internal height.
 
 ## 🧪 Data Validation Test
 
