@@ -151,17 +151,6 @@ if (deadlineResult) {
 }
 
 // Reference line not configured → falls back to unusable-bottom + delivery-lag formula
-const emptyRefConfig = {};
-const fallbackResult = oil.calculateOilDeadline('oil_0_20', 30, knownRows, emptyRefConfig);
-assert('fallback path returns a Date', fallbackResult instanceof Date);
-if (fallbackResult) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const diffDays = Math.round((fallbackResult - today) / (1000 * 60 * 60 * 24));
-    // usableInches = max(0, 30 - 3) = 27; daysToBingo = 27/1 = 27; days = max(0, 27 - 3) = 24
-    assertEqual('fallback deadline 24 days from today', diffDays, 24);
-}
-
 // Already at or past the trigger line → deadline = today (0 days)
 const atTriggerRows = makeRows('oil_0_20', [
     { date: '2025-01-01', level: 25 },
@@ -179,8 +168,8 @@ if (pastTriggerResult) {
 
 // Reference line present but reference_line is NaN → null
 const badRefConfig = { oil_0_20: { reference_line: 'bad', direction: 'above' } };
-assertEqual('non-numeric reference_line falls back to formula',
-    oil.calculateOilDeadline('oil_0_20', 30, knownRows, badRefConfig) instanceof Date, true);
+assertEqual('non-numeric reference_line returns null',
+    oil.calculateOilDeadline('oil_0_20', 30, knownRows, badRefConfig), null);
 
 // ---------------------------------------------------------------------------
 // Summary

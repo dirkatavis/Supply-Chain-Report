@@ -9,8 +9,6 @@ const oilReorderConfig = {
     oil_5_30: { maxInches: 59, gallonsPerInch: 1000 / 59 }
 };
 
-const OIL_DELIVERY_LAG_DAYS = 3;
-const OIL_UNUSABLE_BOTTOM_INCHES = 3;
 
 function calculateOilReorderGallons(metric, levelInches) {
     const config = oilReorderConfig[metric];
@@ -172,9 +170,7 @@ function calculateOilDeadline(metric, levelInches, allDataRows, referenceLinesCo
 
         const actionTriggerLine = getOilActionTriggerLine(metric, referenceLinesConfig);
         if (!Number.isFinite(actionTriggerLine)) {
-            const usableInches = Math.max(0, numericLevel - OIL_UNUSABLE_BOTTOM_INCHES);
-            const daysToBingo = usableInches / averageConsumptionInchesPerDay;
-            daysUntilDeadline = Math.max(0, daysToBingo - OIL_DELIVERY_LAG_DAYS);
+            return null;
         } else {
             const remainingInchesToActionTrigger = Math.max(0, numericLevel - actionTriggerLine);
             daysUntilDeadline = remainingInchesToActionTrigger / averageConsumptionInchesPerDay;
@@ -217,8 +213,6 @@ function formatOilDate(dateValue) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         oilReorderConfig,
-        OIL_DELIVERY_LAG_DAYS,
-        OIL_UNUSABLE_BOTTOM_INCHES,
         calculateOilReorderGallons,
         isOilReorderMetric,
         isOilDeadlineMetric,

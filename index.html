@@ -366,7 +366,7 @@
                     const minActionDate = calculateOilDeadline(metric, value, allDataRows, referenceLinesConfig);
                     const minActionDatePara = document.createElement('p');
                     minActionDatePara.className = 'mt-1 text-sm font-medium text-blue-700';
-                    const minDateLabel = 'Order-By Date';
+                    const minDateLabel = 'Deadline';
                     if (!minActionDate) {
                         minActionDatePara.textContent = `${minDateLabel}: N/A`;
                     } else {
