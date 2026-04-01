@@ -144,6 +144,7 @@ function calculateSupplyConsumptionInchesPerDaySinceLastFill(metric, allDataRows
 
 // Internal helper — not exported.
 function getOilActionTriggerLine(metric, referenceLinesConfig) {
+    if (!referenceLinesConfig) return null;
     const refLine = referenceLinesConfig[metric];
     if (!refLine || typeof refLine.reference_line !== 'number') {
         return null;
