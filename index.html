@@ -17,6 +17,8 @@
     
     <!-- js-yaml for YAML -->
     <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+    <!-- Oil tank planning logic -->
+    <script src="oil_logic.js"></script>
     
     <style>
         body {
@@ -82,14 +84,6 @@
 
         let referenceLinesConfig = {};
 
-        // Oil fill calculation constants
-        const oilReorderConfig = {
-            oil_0_20: { maxInches: 59, gallonsPerInch: 500 / 59 },
-            oil_5_30: { maxInches: 59, gallonsPerInch: 1000 / 59 }
-        };
-
-        const OIL_DELIVERY_LAG_DAYS = 3;
-        const OIL_UNUSABLE_BOTTOM_INCHES = 3;
         const dashboardMetricOrder = [
             'glass_pending_repair',
             'pm_records_filed',
@@ -99,206 +93,6 @@
             'oil_5_30',
             'oil_waste'
         ];
-
-        function calculateOilReorderGallons(metric, levelInches) {
-            const config = oilReorderConfig[metric];
-            if (!config) {
-                return null;
-            }
-            const numericLevel = Number(levelInches);
-            if (!Number.isFinite(numericLevel)) {
-                return null;
-            }
-
-            const inchesToFill = Math.max(0, config.maxInches - numericLevel);
-            return Math.round(inchesToFill * config.gallonsPerInch);
-        }
-
-        function isOilReorderMetric(metricName) {
-            return Object.prototype.hasOwnProperty.call(oilReorderConfig, String(metricName).trim().toLowerCase());
-        }
-
-        function isOilMinActionDateMetric(metricName) {
-            const normalizedMetricName = String(metricName).trim().toLowerCase();
-            return isOilReorderMetric(normalizedMetricName) || normalizedMetricName === 'oil_waste';
-        }
-
-        function parseDateValue(dateValue) {
-            const parsedDate = new Date(dateValue);
-            if (Number.isNaN(parsedDate.getTime())) {
-                return null;
-            }
-            return parsedDate;
-        }
-
-        function calculateAverageInchesPerDay(metric, allDataRows, trendDirection) {
-            if (!Array.isArray(allDataRows) || allDataRows.length < 2) {
-                return null;
-            }
-
-            const rateValues = [];
-            for (let index = 1; index < allDataRows.length; index += 1) {
-                const previousRow = allDataRows[index - 1];
-                const currentRow = allDataRows[index];
-
-                const previousLevel = Number(previousRow[metric]);
-                const currentLevel = Number(currentRow[metric]);
-                if (!Number.isFinite(previousLevel) || !Number.isFinite(currentLevel)) {
-                    continue;
-                }
-
-                const previousDate = parseDateValue(previousRow.date);
-                const currentDate = parseDateValue(currentRow.date);
-                if (!previousDate || !currentDate) {
-                    continue;
-                }
-
-                const dayDifference = (currentDate - previousDate) / (1000 * 60 * 60 * 24);
-                if (!Number.isFinite(dayDifference) || dayDifference <= 0) {
-                    continue;
-                }
-
-                const levelDelta = currentLevel - previousLevel;
-                let inchesPerDay = null;
-
-                if (trendDirection === 'decreasing' && levelDelta < 0) {
-                    inchesPerDay = Math.abs(levelDelta) / dayDifference;
-                }
-
-                if (trendDirection === 'increasing' && levelDelta > 0) {
-                    inchesPerDay = levelDelta / dayDifference;
-                }
-
-                if (!Number.isFinite(inchesPerDay) || inchesPerDay <= 0) {
-                    continue;
-                }
-
-                rateValues.push(inchesPerDay);
-            }
-
-            if (rateValues.length === 0) {
-                return null;
-            }
-
-            const recentRateValues = rateValues.slice(-7);
-            const totalRate = recentRateValues.reduce((sum, rateValue) => sum + rateValue, 0);
-            return totalRate / recentRateValues.length;
-        }
-
-        function calculateSupplyConsumptionInchesPerDaySinceLastFill(metric, allDataRows) {
-            if (!Array.isArray(allDataRows) || allDataRows.length < 2) {
-                return null;
-            }
-
-            let fillStartIndex = 0;
-            for (let index = 1; index < allDataRows.length; index += 1) {
-                const previousLevel = Number(allDataRows[index - 1][metric]);
-                const currentLevel = Number(allDataRows[index][metric]);
-                if (!Number.isFinite(previousLevel) || !Number.isFinite(currentLevel)) {
-                    continue;
-                }
-
-                const levelDelta = currentLevel - previousLevel;
-                if (levelDelta > 0) {
-                    fillStartIndex = index;
-                }
-            }
-
-            const fillStartRow = allDataRows[fillStartIndex];
-            const latestRow = allDataRows[allDataRows.length - 1];
-
-            const fillStartLevel = Number(fillStartRow[metric]);
-            const latestLevel = Number(latestRow[metric]);
-            if (!Number.isFinite(fillStartLevel) || !Number.isFinite(latestLevel)) {
-                return null;
-            }
-
-            const fillStartDate = parseDateValue(fillStartRow.date);
-            const latestDate = parseDateValue(latestRow.date);
-            if (!fillStartDate || !latestDate) {
-                return null;
-            }
-
-            const elapsedDays = (latestDate - fillStartDate) / (1000 * 60 * 60 * 24);
-            if (!Number.isFinite(elapsedDays) || elapsedDays <= 0) {
-                return null;
-            }
-
-            const consumedInchesSinceFill = fillStartLevel - latestLevel;
-            if (!Number.isFinite(consumedInchesSinceFill) || consumedInchesSinceFill <= 0) {
-                return null;
-            }
-
-            return consumedInchesSinceFill / elapsedDays;
-        }
-
-        function getOilActionTriggerLine(metric) {
-            const refLine = referenceLinesConfig[metric];
-            if (!refLine || typeof refLine.reference_line !== 'number') {
-                return null;
-            }
-            return refLine.reference_line;
-        }
-
-        function calculateOilMinActionDate(metric, levelInches, allDataRows) {
-            if (!isOilMinActionDateMetric(metric)) {
-                return null;
-            }
-
-            const numericLevel = Number(levelInches);
-            if (!Number.isFinite(numericLevel)) {
-                return null;
-            }
-
-            let daysUntilMinAction = null;
-            if (isOilReorderMetric(metric)) {
-                const averageConsumptionInchesPerDay = calculateSupplyConsumptionInchesPerDaySinceLastFill(metric, allDataRows);
-                if (!Number.isFinite(averageConsumptionInchesPerDay) || averageConsumptionInchesPerDay <= 0) {
-                    return null;
-                }
-
-                const actionTriggerLine = getOilActionTriggerLine(metric);
-                if (!Number.isFinite(actionTriggerLine)) {
-                    const usableInches = Math.max(0, numericLevel - OIL_UNUSABLE_BOTTOM_INCHES);
-                    const daysToBingo = usableInches / averageConsumptionInchesPerDay;
-                    daysUntilMinAction = Math.max(0, daysToBingo - OIL_DELIVERY_LAG_DAYS);
-                } else {
-                    const remainingInchesToActionTrigger = Math.max(0, numericLevel - actionTriggerLine);
-                    daysUntilMinAction = remainingInchesToActionTrigger / averageConsumptionInchesPerDay;
-                }
-            } else if (String(metric).trim().toLowerCase() === 'oil_waste') {
-                const averageFillInchesPerDay = calculateAverageInchesPerDay(metric, allDataRows, 'increasing');
-                if (!Number.isFinite(averageFillInchesPerDay) || averageFillInchesPerDay <= 0) {
-                    return null;
-                }
-
-                const actionTriggerLine = getOilActionTriggerLine(metric);
-                if (!Number.isFinite(actionTriggerLine)) {
-                    return null;
-                }
-
-                const remainingInchesToActionTrigger = Math.max(0, actionTriggerLine - numericLevel);
-                daysUntilMinAction = remainingInchesToActionTrigger / averageFillInchesPerDay;
-            }
-
-            if (!Number.isFinite(daysUntilMinAction)) {
-                return null;
-            }
-
-            const wholeDaysUntilMinAction = Math.max(0, Math.floor(daysUntilMinAction));
-            const minActionDate = new Date();
-            minActionDate.setHours(0, 0, 0, 0);
-            minActionDate.setDate(minActionDate.getDate() + wholeDaysUntilMinAction);
-            return minActionDate;
-        }
-
-        function formatOilDate(dateValue) {
-            return dateValue.toLocaleDateString('en-US', {
-                month: '2-digit',
-                day: '2-digit',
-                year: '2-digit'
-            });
-        }
 
         // Load dashboard config from YAML
         async function loadDashboardConfig() {
@@ -568,11 +362,11 @@
                     card.appendChild(reorderPara);
                 }
 
-                if (isOilMinActionDateMetric(metric)) {
-                    const minActionDate = calculateOilMinActionDate(metric, value, allDataRows);
+                if (isOilDeadlineMetric(metric)) {
+                    const minActionDate = calculateOilDeadline(metric, value, allDataRows, referenceLinesConfig);
                     const minActionDatePara = document.createElement('p');
                     minActionDatePara.className = 'mt-1 text-sm font-medium text-blue-700';
-                    const minDateLabel = 'Order-By Date';
+                    const minDateLabel = 'Deadline';
                     if (!minActionDate) {
                         minActionDatePara.textContent = `${minDateLabel}: N/A`;
                     } else {
