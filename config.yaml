@@ -42,6 +42,9 @@ general_responsibilities:
   - title: Supply Management
     description: Monitor and Report on Airport Oil Levels
     owner: Dirk Steele
+  - title: Supply Management - Used Oil Filters
+    description: Monitor and Report on Used Oil Filter container levels
+    owner: Dirk Steele
 
 ###############################################################
 # Reference lines for each KPI chart and status logic
@@ -68,4 +71,7 @@ ReferenceLines:
     direction: below
   atl_ro_levels:
     reference_line: 250
+    direction: below
+  used_oil_filters:
+    reference_line: 70
     direction: below
