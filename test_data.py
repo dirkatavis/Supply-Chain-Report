@@ -228,6 +228,42 @@ def test_oil_reference_lines_present():
         )
     print('test_oil_reference_lines_present: OK')
 
+def test_used_oil_filters_reference_line_present():
+    """used_oil_filters should define a reference line of 70 with direction 'below'."""
+    with open('config.yaml', encoding='utf-8') as f:
+        data = yaml.safe_load(f)
+    ref = data.get('ReferenceLines', {})
+    assert 'used_oil_filters' in ref, 'used_oil_filters must be present in ReferenceLines'
+    assert ref['used_oil_filters'].get('reference_line') == 70, (
+        'used_oil_filters reference_line must be 70'
+    )
+    assert ref['used_oil_filters'].get('direction') == 'below', (
+        "used_oil_filters direction must be 'below'"
+    )
+    print('test_used_oil_filters_reference_line_present: OK')
+
+
+def test_used_oil_filters_status_logic():
+    """used_oil_filters status: <=70% is Excellent, >70% is Needs Attention, None is Needs Attention."""
+    def get_status(value, ref_line, direction):
+        if value is None or ref_line is None or direction not in ('above', 'below'):
+            return 'Needs Attention'
+        if direction == 'above':
+            return 'Excellent' if value >= ref_line else 'Needs Attention'
+        return 'Excellent' if value <= ref_line else 'Needs Attention'
+
+    assert get_status(70, 70, 'below') == 'Excellent', (
+        'At threshold (70%) should be Excellent'
+    )
+    assert get_status(71, 70, 'below') == 'Needs Attention', (
+        'Above threshold (71%) should be Needs Attention'
+    )
+    assert get_status(None, 70, 'below') == 'Needs Attention', (
+        'Missing value should be Needs Attention'
+    )
+    print('test_used_oil_filters_status_logic: OK')
+
+
 def main():
     test_reference_lines_config()
     test_status_logic()
@@ -249,6 +285,8 @@ def main():
     test_bingo_date_is_reference_line_based()
     test_bingo_date_no_double_delivery_lag_subtraction()
     test_oil_reference_lines_present()
+    test_used_oil_filters_reference_line_present()
+    test_used_oil_filters_status_logic()
     test_get_status_color()
     # test_get_metric_series()  # Commented out, not defined in this file
     test_extract_responsibilities()
