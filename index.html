@@ -63,16 +63,6 @@
                 </div>
             </section>
 
-            <!-- Dedicated Used Oil Filters Chart -->
-            <section class="bg-white rounded-lg shadow-lg p-8 mt-8">
-                <h2 class="text-2xl font-semibold text-gray-800 mb-2">Used Oil Filters</h2>
-                <p class="text-sm text-red-600 font-medium mb-4">Needs Attention threshold: 70%</p>
-                <div id="used-oil-filters-chart-container" class="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                    <div class="h-64">
-                        <canvas id="used-oil-filters-chart" role="img" aria-label="Line chart showing Used Oil Filters over time"></canvas>
-                    </div>
-                </div>
-            </section>
         </main>
     </div>
 
@@ -314,8 +304,6 @@
                         // Display progress chart (all rows)
                         displayProgressChart(data);
 
-                        // Display dedicated used oil filters chart (all rows)
-                        displayUsedOilFiltersChart(data);
                     },
                     error: function(error) {
                         throw new Error('CSV parsing error: ' + error.message);
@@ -449,7 +437,6 @@
             // Extract dates and metrics
             const dates = data.map(row => row.date);
             const metrics = dashboardMetricOrder
-                .filter(metric => metric !== 'used_oil_filters')
                 .filter(metric => Object.prototype.hasOwnProperty.call(data[0], metric));
             
             const colors = [
@@ -615,124 +602,6 @@
             });
         }
 
-        function displayUsedOilFiltersChart(data) {
-            const canvas = document.getElementById('used-oil-filters-chart');
-            if (!canvas || !Array.isArray(data) || data.length === 0) {
-                return;
-            }
-
-            // Skip rendering when the source column does not exist.
-            if (!Object.prototype.hasOwnProperty.call(data[0], 'used_oil_filters')) {
-                const chartContainer = document.getElementById('used-oil-filters-chart-container');
-                if (chartContainer) {
-                    chartContainer.innerHTML = '<p class="text-sm text-gray-600">Used Oil Filters data is not available in the source.</p>';
-                }
-                return;
-            }
-
-            const dates = data.map(row => row.date);
-            const usedOilValues = data.map(row => getNumericMetricValueOrNull(row.used_oil_filters));
-            const threshold = 70;
-
-            const chartInstance = new Chart(canvas.getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels: dates,
-                    datasets: [
-                        {
-                            label: 'Used Oil Filters',
-                            data: usedOilValues,
-                            borderColor: '#3b82f6',
-                            backgroundColor: '#3b82f633',
-                            tension: 0.3,
-                            fill: true,
-                            pointRadius: 5,
-                            pointHoverRadius: 7,
-                            borderWidth: 3,
-                            spanGaps: false
-                        },
-                        {
-                            label: 'Needs Attention (70%)',
-                            data: Array(dates.length).fill(threshold),
-                            borderColor: 'red',
-                            backgroundColor: 'transparent',
-                            borderWidth: 5,
-                            pointRadius: 0,
-                            pointHoverRadius: 0,
-                            fill: false,
-                            tension: 0
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            padding: 12,
-                            titleFont: {
-                                size: 14,
-                                weight: 'bold'
-                            },
-                            bodyFont: {
-                                size: 13
-                            },
-                            callbacks: {
-                                label: function(context) {
-                                    if (context.datasetIndex === 1) {
-                                        return 'Needs Attention Threshold: 70%';
-                                    }
-                                    if (!Number.isFinite(context.parsed.y)) {
-                                        return 'Used Oil Filters: N/A';
-                                    }
-                                    return `Used Oil Filters: ${context.parsed.y}%`;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            min: 0,
-                            max: 100,
-                            ticks: {
-                                callback: function(value) {
-                                    return value + '%';
-                                },
-                                font: {
-                                    size: 11
-                                }
-                            },
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.05)'
-                            }
-                        },
-                        x: {
-                            ticks: {
-                                font: {
-                                    size: 11
-                                }
-                            },
-                            grid: {
-                                display: false
-                            }
-                        }
-                    },
-                    interaction: {
-                        mode: 'nearest',
-                        axis: 'x',
-                        intersect: false
-                    }
-                }
-            });
-
-            chartInstances.push(chartInstance);
-        }
-        
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', async function() {
             await loadDashboardConfig();
