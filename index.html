@@ -212,6 +212,14 @@
             return metric.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
         }
 
+        function calculateCurrentMonthEndDate() {
+            const today = new Date();
+            // Day 0 of next month is the last day of the current month.
+            const monthEndDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            monthEndDate.setHours(0, 0, 0, 0);
+            return monthEndDate;
+        }
+
         function sanitizeParsedStatusRows(parsedRows) {
             if (!Array.isArray(parsedRows)) {
                 return [];
@@ -398,6 +406,13 @@
                         minActionDatePara.textContent = `${minDateLabel}: ${formatOilDate(minActionDate)}`;
                     }
                     card.appendChild(minActionDatePara);
+                }
+
+                if (metric === 'used_oil_filters') {
+                    const monthEndDatePara = document.createElement('p');
+                    monthEndDatePara.className = 'mt-1 text-sm font-medium text-blue-700';
+                    monthEndDatePara.textContent = `Deadline: ${formatOilDate(calculateCurrentMonthEndDate())}`;
+                    card.appendChild(monthEndDatePara);
                 }
 
                 container.appendChild(card);
