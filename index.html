@@ -62,6 +62,17 @@
                     <!-- Individual charts will be loaded here -->
                 </div>
             </section>
+
+            <!-- Dedicated Used Oil Filters Chart -->
+            <section class="bg-white rounded-lg shadow-lg p-8 mt-8">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-2">Used Oil Filters</h2>
+                <p class="text-sm text-red-600 font-medium mb-4">Needs Attention threshold: 70%</p>
+                <div id="used-oil-filters-chart-container" class="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                    <div class="h-64">
+                        <canvas id="used-oil-filters-chart" role="img" aria-label="Line chart showing Used Oil Filters over time"></canvas>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -77,6 +88,7 @@
             pm_records_filed: { green: 9, amber: 8, nullIs: 'red' },
             missing_keys: { green: 9, amber: 7, nullIs: 'red' },
             atl_ro_levels: { green: 92, amber: 8, nullIs: 'red' },
+            used_oil_filters: { green: 70, amber: 0, nullIs: 'red' },
             oil_0_20: { green: 90, amber: 75, nullIs: 'red' },
             oil_5_30: { green: 90, amber: 75, nullIs: 'red' },
             oil_waste: { green: 90, amber: 75, nullIs: 'red' }
@@ -89,10 +101,29 @@
             'pm_records_filed',
             'missing_keys',
             'atl_ro_levels',
+            'used_oil_filters',
             'oil_0_20',
             'oil_5_30',
             'oil_waste'
         ];
+
+        function isMissingMetricValue(value) {
+            if (value === null || value === undefined) {
+                return true;
+            }
+            if (typeof value === 'string' && value.trim() === '') {
+                return true;
+            }
+            const numericValue = Number(value);
+            return !Number.isFinite(numericValue);
+        }
+
+        function getNumericMetricValueOrNull(value) {
+            if (isMissingMetricValue(value)) {
+                return null;
+            }
+            return Number(value);
+        }
 
         // Load dashboard config from YAML
         async function loadDashboardConfig() {
@@ -114,21 +145,22 @@
         function getStatusColor(value, metric) {
             const refLine = referenceLinesConfig[metric];
             if (refLine && typeof refLine.reference_line === 'number' && refLine.direction) {
-                if (value === null || value === undefined || isNaN(value)) {
+                if (isMissingMetricValue(value)) {
                     return 'status-red';
                 }
+                const numericValue = Number(value);
                 if (refLine.direction === 'above') {
-                    return value >= refLine.reference_line ? 'status-green' : 'status-red';
+                    return numericValue >= refLine.reference_line ? 'status-green' : 'status-red';
                 } else {
-                    return value <= refLine.reference_line ? 'status-green' : 'status-red';
+                    return numericValue <= refLine.reference_line ? 'status-green' : 'status-red';
                 }
             }
             // fallback to legacy config
             const config = statusConfig[metric] || statusConfig.default;
-            if (value === null || value === undefined || isNaN(value)) {
+            if (isMissingMetricValue(value)) {
                 return config.nullIs === 'green' ? 'status-green' : (config.nullIs === 'amber' ? 'status-amber' : 'status-red');
             }
-            const percentage = calculatePercentage(value, metric);
+            const percentage = calculatePercentage(Number(value), metric);
             if (percentage >= config.green) return 'status-green';
             if (percentage >= config.amber) return 'status-amber';
             return 'status-red';
@@ -137,21 +169,22 @@
         function getStatusText(value, metric) {
             const refLine = referenceLinesConfig[metric];
             if (refLine && typeof refLine.reference_line === 'number' && refLine.direction) {
-                if (value === null || value === undefined || isNaN(value)) {
+                if (isMissingMetricValue(value)) {
                     return 'Needs Attention';
                 }
+                const numericValue = Number(value);
                 if (refLine.direction === 'above') {
-                    return value >= refLine.reference_line ? 'Excellent' : 'Needs Attention';
+                    return numericValue >= refLine.reference_line ? 'Excellent' : 'Needs Attention';
                 } else {
-                    return value <= refLine.reference_line ? 'Excellent' : 'Needs Attention';
+                    return numericValue <= refLine.reference_line ? 'Excellent' : 'Needs Attention';
                 }
             }
             // fallback to legacy config
             const config = statusConfig[metric] || statusConfig.default;
-            if (value === null || value === undefined || isNaN(value)) {
+            if (isMissingMetricValue(value)) {
                 return config.nullIs === 'green' ? 'Excellent' : (config.nullIs === 'amber' ? 'Good' : 'Needs Attention');
             }
-            const percentage = calculatePercentage(value, metric);
+            const percentage = calculatePercentage(Number(value), metric);
             if (percentage >= config.green) return 'Excellent';
             if (percentage >= config.amber) return 'Good';
             return 'Needs Attention';
@@ -280,6 +313,9 @@
                         
                         // Display progress chart (all rows)
                         displayProgressChart(data);
+
+                        // Display dedicated used oil filters chart (all rows)
+                        displayUsedOilFiltersChart(data);
                     },
                     error: function(error) {
                         throw new Error('CSV parsing error: ' + error.message);
@@ -303,7 +339,8 @@
             const metrics = dashboardMetricOrder.filter(metric => Object.prototype.hasOwnProperty.call(latestData, metric));
             
             metrics.forEach(metric => {
-                const value = latestData[metric];
+                const rawValue = latestData[metric];
+                const value = getNumericMetricValueOrNull(rawValue);
                 const statusColor = getStatusColor(value, metric);
                 const statusText = getStatusText(value, metric);
                 const range = metricRanges[metric] || { min: 0, max: 100, unit: '', lowerIsBetter: false };
@@ -331,11 +368,11 @@
                 
                 const valueSpan = document.createElement('span');
                 valueSpan.className = 'text-4xl font-bold text-gray-900';
-                valueSpan.textContent = value;
+                valueSpan.textContent = value === null ? 'N/A' : value;
                 
                 const unitSpan = document.createElement('span');
                 unitSpan.className = 'text-2xl text-gray-500';
-                unitSpan.textContent = range.unit;
+                unitSpan.textContent = value === null ? '' : range.unit;
                 
                 valueDiv.appendChild(valueSpan);
                 valueDiv.appendChild(unitSpan);
@@ -385,6 +422,7 @@
             'pm_records_filed': { min: 0, max: 100, unit: '', lowerIsBetter: false },
             'missing_keys': { min: 0, max: 20, unit: '', lowerIsBetter: true },
             'atl_ro_levels': { min: 200, max: 800, unit: '', lowerIsBetter: true },
+            'used_oil_filters': { min: 0, max: 100, unit: '%', lowerIsBetter: true },
             'oil_0_20': { min: 5, max: 50, unit: '"', lowerIsBetter: false },
             'oil_5_30': { min: 5, max: 50, unit: '"', lowerIsBetter: false },
             'oil_waste': { min: 5, max: 50, unit: '"', lowerIsBetter: false }
@@ -410,7 +448,9 @@
 
             // Extract dates and metrics
             const dates = data.map(row => row.date);
-            const metrics = dashboardMetricOrder.filter(metric => Object.prototype.hasOwnProperty.call(data[0], metric));
+            const metrics = dashboardMetricOrder
+                .filter(metric => metric !== 'used_oil_filters')
+                .filter(metric => Object.prototype.hasOwnProperty.call(data[0], metric));
             
             const colors = [
                 { border: '#3b82f6', background: '#3b82f633' }, // blue
@@ -573,6 +613,124 @@
                 // Store chart instance for cleanup
                 chartInstances.push(chartInstance);
             });
+        }
+
+        function displayUsedOilFiltersChart(data) {
+            const canvas = document.getElementById('used-oil-filters-chart');
+            if (!canvas || !Array.isArray(data) || data.length === 0) {
+                return;
+            }
+
+            // Skip rendering when the source column does not exist.
+            if (!Object.prototype.hasOwnProperty.call(data[0], 'used_oil_filters')) {
+                const chartContainer = document.getElementById('used-oil-filters-chart-container');
+                if (chartContainer) {
+                    chartContainer.innerHTML = '<p class="text-sm text-gray-600">Used Oil Filters data is not available in the source.</p>';
+                }
+                return;
+            }
+
+            const dates = data.map(row => row.date);
+            const usedOilValues = data.map(row => getNumericMetricValueOrNull(row.used_oil_filters));
+            const threshold = 70;
+
+            const chartInstance = new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: 'Used Oil Filters',
+                            data: usedOilValues,
+                            borderColor: '#3b82f6',
+                            backgroundColor: '#3b82f633',
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            borderWidth: 3,
+                            spanGaps: false
+                        },
+                        {
+                            label: 'Needs Attention (70%)',
+                            data: Array(dates.length).fill(threshold),
+                            borderColor: 'red',
+                            backgroundColor: 'transparent',
+                            borderWidth: 5,
+                            pointRadius: 0,
+                            pointHoverRadius: 0,
+                            fill: false,
+                            tension: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 13
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.datasetIndex === 1) {
+                                        return 'Needs Attention Threshold: 70%';
+                                    }
+                                    if (!Number.isFinite(context.parsed.y)) {
+                                        return 'Used Oil Filters: N/A';
+                                    }
+                                    return `Used Oil Filters: ${context.parsed.y}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            min: 0,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                },
+                                font: {
+                                    size: 11
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: {
+                                    size: 11
+                                }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+
+            chartInstances.push(chartInstance);
         }
         
         // Initialize dashboard
