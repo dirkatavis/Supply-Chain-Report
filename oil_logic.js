@@ -164,7 +164,12 @@ function calculateOilDeadline(metric, levelInches, allDataRows, referenceLinesCo
 
     let daysUntilDeadline = null;
     if (isOilReorderMetric(metric)) {
-        const averageConsumptionInchesPerDay = calculateSupplyConsumptionInchesPerDaySinceLastFill(metric, allDataRows);
+        // Prefer the operational rule (since last refill), but fall back to
+        // recent drawdown trend when a new refill has too little post-fill data.
+        let averageConsumptionInchesPerDay = calculateSupplyConsumptionInchesPerDaySinceLastFill(metric, allDataRows);
+        if (!Number.isFinite(averageConsumptionInchesPerDay) || averageConsumptionInchesPerDay <= 0) {
+            averageConsumptionInchesPerDay = calculateAverageInchesPerDay(metric, allDataRows, 'decreasing');
+        }
         if (!Number.isFinite(averageConsumptionInchesPerDay) || averageConsumptionInchesPerDay <= 0) {
             return null;
         }

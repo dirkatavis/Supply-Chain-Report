@@ -135,6 +135,22 @@ assertEqual('non-deadline metric returns null',
 assertEqual('no consumption data returns null',
     oil.calculateOilDeadline('oil_0_20', 30, [{ date: '2025-01-01', oil_0_20: 30 }], refConfig), null);
 
+// No post-refill drawdown yet, but historical decreases exist → fallback to trend rate
+const refillThenFlatRows = makeRows('oil_0_20', [
+    { date: '2025-01-01', level: 50 },
+    { date: '2025-01-11', level: 40 }, // decreasing segment => 1 in/day trend
+    { date: '2025-01-15', level: 45 }  // refill; since-last-fill consumption is unavailable
+]);
+const fallbackDeadline = oil.calculateOilDeadline('oil_0_20', 30, refillThenFlatRows, refConfig);
+assert('fallback deadline is a Date when trend data exists', fallbackDeadline instanceof Date);
+if (fallbackDeadline) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((fallbackDeadline - today) / (1000 * 60 * 60 * 24));
+    // level=30, refLine=20, fallback rate=1 in/day => 10 days
+    assertEqual('fallback deadline 10 days from today', diffDays, 10);
+}
+
 // Known scenario: 1 in/day consumption, level=30", ref_line=20" → 10 days until deadline
 const knownRows = makeRows('oil_0_20', [
     { date: '2025-01-01', level: 50 },
